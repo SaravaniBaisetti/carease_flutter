@@ -41,6 +41,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CareEase requires access to your location to send accurate SOS alerts to your caregiver in an emergency.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>CareEase requires access to your location to send reliable SOS alerts to your caregiver in an emergency.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
