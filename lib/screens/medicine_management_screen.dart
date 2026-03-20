@@ -15,7 +15,7 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
   final _nameController = TextEditingController();
   final _dosageController = TextEditingController();
   final _frequencyController = TextEditingController();
-  final _timeSlotsController = TextEditingController(); // e.g. "08:00, 20:00"
+  List<String> _selectedTimeSlots = [];
 
   bool isAdding = false;
 
@@ -25,13 +25,6 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
     setState(() => isAdding = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      
-      // Parse time slots by comma
-      List<String> timeSlots = _timeSlotsController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
 
       await FirebaseFirestore.instance
           .collection('elderClusters')
@@ -41,7 +34,7 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
         "name": _nameController.text.trim(),
         "dosage": _dosageController.text.trim(),
         "frequency": _frequencyController.text.trim(),
-        "timeSlots": timeSlots,
+        "timeSlots": _selectedTimeSlots,
         "createdBy": user!.uid,
         "isActive": true,
         "createdAt": FieldValue.serverTimestamp(),
@@ -54,23 +47,40 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
         _nameController.clear();
         _dosageController.clear();
         _frequencyController.clear();
-        _timeSlotsController.clear();
+        _selectedTimeSlots.clear();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add medicine: \${e.toString()}')),
+          SnackBar(content: Text('Failed to add medicine: ${e.toString()}')),
         );
       }
     }
     if (mounted) setState(() => isAdding = false);
   }
 
+  void _addTimeSlot(StateSetter setDialogState) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      final String timeStr = "\${picked.hour.toString().padLeft(2, '0')}:\${picked.minute.toString().padLeft(2, '0')}";
+      if (!_selectedTimeSlots.contains(timeStr)) {
+        setDialogState(() {
+          _selectedTimeSlots.add(timeStr);
+        });
+      }
+    }
+  }
+
   void _showAddMedicineDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
           title: const Text('Add New Medicine'),
           content: SingleChildScrollView(
             child: Column(
@@ -88,9 +98,23 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
                   controller: _frequencyController,
                   decoration: const InputDecoration(labelText: 'Frequency (e.g., 2 times daily)'),
                 ),
-                TextField(
-                  controller: _timeSlotsController,
-                  decoration: const InputDecoration(labelText: 'Time Slots (comma separated, e.g., 08:00, 20:00)'),
+                const SizedBox(height: 16),
+                const Text('Time Slots:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 8,
+                  children: _selectedTimeSlots.map((ts) => Chip(
+                    label: Text(ts),
+                    onDeleted: () {
+                      setDialogState(() {
+                        _selectedTimeSlots.remove(ts);
+                      });
+                    },
+                  )).toList(),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _addTimeSlot(setDialogState),
+                  icon: const Icon(Icons.add_alarm),
+                  label: const Text('Add Time Slot'),
                 ),
               ],
             ),
@@ -108,6 +132,8 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
               child: const Text('Save'),
             ),
           ],
+        );
+          },
         );
       },
     );
@@ -134,7 +160,7 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -158,7 +184,17 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
             padding: const EdgeInsets.all(10),
             itemBuilder: (context, index) {
               final medData = medicines[index].data() as Map<String, dynamic>;
-              final timeSlots = (medData['timeSlots'] as List<dynamic>?)?.join(', ') ?? 'No slots';
+              
+              // Helper to convert 24h to 12h for UI display
+              String formatTime(String time24) {
+                try {
+                  final parts = time24.split(':');
+                  final TimeOfDay tod = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+                  return tod.format(context);
+                } catch(e) { return time24; }
+              }
+              
+              final timeSlots = (medData['timeSlots'] as List<dynamic>?)?.map((t) => formatTime(t.toString())).join(', ') ?? 'No slots';
               
               return Card(
                 elevation: 2,
@@ -170,7 +206,7 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
                     children: [
                       Text('Dosage: ${medData["dosage"] ?? "N/A"}'),
                       Text('Frequency: ${medData["frequency"] ?? "N/A"}'),
-                      Text('Times: \$timeSlots'),
+                      Text('Times: $timeSlots'),
                     ],
                   ),
                   trailing: IconButton(
@@ -206,7 +242,7 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
                           }
                         } catch(e) {
                           if(mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: \$e')));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                           }
                         }
                       }

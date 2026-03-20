@@ -32,7 +32,7 @@ class _ElderTaskViewState extends State<ElderTaskView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update task: \${e.toString()}')),
+          SnackBar(content: Text('Failed to update task: ${e.toString()}')),
         );
       }
     }
@@ -55,7 +55,7 @@ class _ElderTaskViewState extends State<ElderTaskView> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -99,6 +99,14 @@ class _ElderTaskViewState extends State<ElderTaskView> {
               final taskId = tasks[index].id;
               final taskData = tasks[index].data() as Map<String, dynamic>;
               final isCompleted = taskData['status'] == 'completed';
+              
+              String displayTime = taskData['dueTime']?.toString() ?? '';
+              if (displayTime.isNotEmpty) {
+                try {
+                  final parts = displayTime.split(':');
+                  displayTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])).format(context);
+                } catch(e) {}
+              }
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -148,10 +156,10 @@ class _ElderTaskViewState extends State<ElderTaskView> {
                               children: [
                                 Icon(Icons.access_time, size: 16, color: Colors.blue.shade700),
                                 const SizedBox(width: 8),
-                                Text(
-                                  taskData['dueTime'], 
-                                  style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)
-                                ),
+                                  Text(
+                                    displayTime, 
+                                    style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold)
+                                  ),
                               ],
                             ),
                           ),

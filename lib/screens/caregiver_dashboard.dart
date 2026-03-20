@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'elder_detail_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
+import 'incoming_alert_screen.dart';
+import 'dart:async';
 
 class CaregiverDashboard extends StatefulWidget {
   const CaregiverDashboard({super.key});
@@ -19,6 +21,8 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
   List<String> clusterIds = [];
   bool isLoading = true;
   String caregiverName = '';
+  final List<StreamSubscription> _alertSubscriptions = [];
+  final Set<String> _shownAlerts = {};
 
   @override
   void initState() {
@@ -46,7 +50,70 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
       debugPrint('Error loading caregiver dashboard: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
+      _setupAlertListeners();
     }
+  }
+
+  void _setupAlertListeners() {
+    for (var sub in _alertSubscriptions) {
+      sub.cancel();
+    }
+    _alertSubscriptions.clear();
+
+    for (String cId in clusterIds) {
+      final sub = FirebaseFirestore.instance
+          .collection('elderClusters')
+          .doc(cId)
+          .collection('alerts')
+          .where('resolved', isEqualTo: false)
+          .snapshots()
+          .listen((snapshot) async {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final alertId = change.doc.id;
+            final alertData = change.doc.data();
+            
+            if (alertData != null && 
+               (alertData['type'] == 'SOS' || alertData['type'] == 'CALL_REQUEST') && 
+               !_shownAlerts.contains(alertId)) {
+               
+               _shownAlerts.add(alertId);
+               
+               final clusterDoc = await FirebaseFirestore.instance.collection('elderClusters').doc(cId).get();
+               final eId = clusterDoc.data()?['elderId'];
+               String eName = "Elder";
+               if (eId != null) {
+                  final profile = await FirebaseFirestore.instance.collection('users').doc(eId).collection('profile').doc(eId).get();
+                  eName = profile.data()?['name'] ?? "Elder";
+               }
+
+               if (mounted) {
+                 Navigator.push(
+                   context,
+                   MaterialPageRoute(
+                     builder: (_) => IncomingAlertScreen(
+                       clusterId: cId,
+                       alertId: alertId,
+                       elderName: eName,
+                       alertType: alertData['type'],
+                     )
+                   )
+                 );
+               }
+            }
+          }
+        }
+      });
+      _alertSubscriptions.add(sub);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _alertSubscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
   }
 
   void _showAddElderDialog() {

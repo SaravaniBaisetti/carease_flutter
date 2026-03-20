@@ -25,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final weightController = TextEditingController();
   final medicalConditionsController = TextEditingController();
   final emergencyMedicationController = TextEditingController();
+  final emergencyContactsController = TextEditingController();
   final relationController = TextEditingController();
 
   @override
@@ -56,6 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           weightController.text = data['weight'] ?? '';
           medicalConditionsController.text = data['medicalConditions'] ?? '';
           emergencyMedicationController.text = data['emergencyMedication'] ?? '';
+          emergencyContactsController.text = data['emergencyContacts'] ?? '';
         } else {
           relationController.text = data['relationToElder'] ?? '';
         }
@@ -92,6 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'weight': weightController.text.trim(),
           'medicalConditions': medicalConditionsController.text.trim(),
           'emergencyMedication': emergencyMedicationController.text.trim(),
+          'emergencyContacts': emergencyContactsController.text.trim(),
         });
       } else {
         profileData.addAll({
@@ -138,6 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     weightController.dispose();
     medicalConditionsController.dispose();
     emergencyMedicationController.dispose();
+    emergencyContactsController.dispose();
     relationController.dispose();
     super.dispose();
   }
@@ -221,6 +225,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Text("These medications will be displayed during an active SOS.", style: TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 8),
               _buildTextField("Emergency Medications (e.g., Nitroglycerin)", emergencyMedicationController, maxLines: 3),
+              const SizedBox(height: 16),
+              const Text("Custom Emergency Contacts", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const SizedBox(height: 8),
+              _buildTextField("Phone Numbers (comma separated)", emergencyContactsController, maxLines: 2, keyboardType: TextInputType.phone),
             ] else ...[
               const SizedBox(height: 20),
               const Text("Role Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),

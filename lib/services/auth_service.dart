@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -76,6 +77,8 @@ class AuthService {
       clusterError = e.toString();
     }
 
+    await _updateFCMToken(uid);
+
     return {
       'user': cred.user,
       'clusterError': clusterError,
@@ -145,10 +148,36 @@ class AuthService {
       email: email,
       password: password,
     );
+    await _updateFCMToken(cred.user?.uid);
     return cred.user;
   }
 
+  Future<void> _updateFCMToken(String? uid) async {
+    if (uid == null) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _firestore.collection('users').doc(uid).update({
+          'fcmTokens': FieldValue.arrayUnion([token]),
+        });
+      }
+    } catch (e) {
+      debugPrint('FCM Token generation error: $e');
+    }
+  }
+
   Future<void> signOut() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      try {
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) {
+           await _firestore.collection('users').doc(uid).update({
+             'fcmTokens': FieldValue.arrayRemove([token]),
+           });
+        }
+      } catch (e) {}
+    }
     await _auth.signOut();
   }
 }

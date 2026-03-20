@@ -53,13 +53,13 @@ class _ElderDashboardState extends State<ElderDashboard> {
       if (cId != null) {
         // Fetch the caregiver's phone number as the primary emergency contact
         final clusterDoc = await FirebaseFirestore.instance.collection('elderClusters').doc(cId).get();
-        final caregiverId = clusterDoc.data()?['caregiverId'];
+        final caregiverId = clusterDoc.data()?['primaryCaregiverId'];
         
         if (caregiverId != null) {
-          final caregiverDoc = await FirebaseFirestore.instance.collection('users').doc(caregiverId).get();
+          final caregiverDoc = await FirebaseFirestore.instance.collection('users').doc(caregiverId).collection('profile').doc(caregiverId).get();
           if (mounted) {
             setState(() {
-              caregiverPhone = caregiverDoc.data()?['phoneNumber']; 
+              caregiverPhone = caregiverDoc.data()?['phone']; 
             });
           }
         }
@@ -77,15 +77,32 @@ class _ElderDashboardState extends State<ElderDashboard> {
   }
 
   Future<void> _callCaregiver() async {
-    if (caregiverPhone == null || caregiverPhone!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Caregiver phone number not found.')));
+    if (clusterId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No cluster assigned.')));
       return;
     }
     
-    final Uri url = Uri.parse('tel:\$caregiverPhone');
-    if (!await launchUrl(url)) {
+    // Trigger in-app call request
+    try {
+      await FirebaseFirestore.instance
+          .collection('elderClusters')
+          .doc(clusterId!)
+          .collection('alerts')
+          .add({
+        "type": "CALL_REQUEST",
+        "triggeredBy": user!.uid,
+        "timestamp": FieldValue.serverTimestamp(),
+        "resolved": false,
+      });
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not launch dialer for \$caregiverPhone')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Calling Caregiver... please wait.'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Call failed: $e')));
       }
     }
   }

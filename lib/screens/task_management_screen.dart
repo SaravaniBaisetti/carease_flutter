@@ -48,18 +48,35 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add task: \${e.toString()}')),
+          SnackBar(content: Text('Failed to add task: ${e.toString()}')),
         );
       }
     }
     if (mounted) setState(() => isAdding = false);
   }
 
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        // format as HH:mm zero padded for proper sorting and parsing
+        final hr = picked.hour.toString().padLeft(2, '0');
+        final mn = picked.minute.toString().padLeft(2, '0');
+        _dueTimeController.text = "$hr:$mn";
+      });
+    }
+  }
+
   void _showAddTaskDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
           title: const Text('Assign New Task'),
           content: SingleChildScrollView(
             child: Column(
@@ -76,8 +93,24 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
                 ),
                 TextField(
                   controller: _dueTimeController,
-                  decoration: const InputDecoration(labelText: 'Due Time (ex. 09:00 or 14:30)'),
-                  keyboardType: TextInputType.datetime,
+                  readOnly: true,
+                  onTap: () async {
+                    final TimeOfDay? picked = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (picked != null) {
+                      setDialogState(() {
+                        final hr = picked.hour.toString().padLeft(2, '0');
+                        final mn = picked.minute.toString().padLeft(2, '0');
+                        _dueTimeController.text = "$hr:$mn";
+                      });
+                    }
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Due Time (Tap to pick)',
+                    suffixIcon: Icon(Icons.access_time),
+                  ),
                 ),
               ],
             ),
@@ -95,6 +128,8 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
               child: const Text('Assign Task'),
             ),
           ],
+        );
+          },
         );
       },
     );
@@ -121,7 +156,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {

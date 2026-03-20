@@ -31,13 +31,13 @@ class _ElderMedicineViewState extends State<ElderMedicineView> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logged \$medicineName as \$status')),
+          SnackBar(content: Text('Logged $medicineName as $status')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to log medicine: \${e.toString()}')),
+          SnackBar(content: Text('Failed to log medicine: ${e.toString()}')),
         );
       }
     }
@@ -60,7 +60,7 @@ class _ElderMedicineViewState extends State<ElderMedicineView> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -103,7 +103,15 @@ class _ElderMedicineViewState extends State<ElderMedicineView> {
             itemBuilder: (context, index) {
               final medId = medicines[index].id;
               final medData = medicines[index].data() as Map<String, dynamic>;
-              final timeSlots = (medData['timeSlots'] as List<dynamic>?)?.join(', ') ?? 'No slots';
+              
+              String formatTime(String time24) {
+                try {
+                  final parts = time24.split(':');
+                  return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])).format(context);
+                } catch(e) { return time24; }
+              }
+              
+              final timeSlots = (medData['timeSlots'] as List<dynamic>?)?.map((t) => formatTime(t.toString())).join(', ') ?? 'No slots';
               final medName = medData['name'] ?? 'Unknown Medicine';
 
               return Container(

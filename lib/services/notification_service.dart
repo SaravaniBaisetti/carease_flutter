@@ -4,6 +4,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:typed_data';
 
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(NotificationResponse notificationResponse) async {
@@ -38,7 +39,7 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        debugPrint("Notification Tapped in Foreground: \${response.payload}");
+        debugPrint("Notification Tapped in Foreground: ${response.payload}");
         await _handleAction(response);
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
@@ -66,7 +67,7 @@ class NotificationService {
 
     final tz.TZDateTime tzTime = tz.TZDateTime.from(scheduledTime, tz.local);
 
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'careasen_alarms',
       'CareEase Alarms',
@@ -75,13 +76,17 @@ class NotificationService {
       priority: Priority.high,
       fullScreenIntent: true, // Acts like a real alarm appearing on top
       category: AndroidNotificationCategory.alarm,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT: Rings continuously until dismissed!
+      color: Colors.redAccent,
+      playSound: true,
       actions: [
         AndroidNotificationAction('snooze', 'Snooze (5m)'),
         AndroidNotificationAction('done', 'Mark as Done'),
       ],
     );
 
-    const NotificationDetails platformChannelSpecifics =
+    final NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
 
     await _flutterLocalNotificationsPlugin.zonedSchedule(
@@ -157,7 +162,7 @@ class NotificationService {
           "timestamp": FieldValue.serverTimestamp(),
           "resolved": false,
           "resolvedBy": null,
-          "description": "Elder missed or snoozed \${type == 'medicine' ? 'medicine' : 'task'} more than 3 times."
+          "description": "Elder missed or snoozed ${type == 'medicine' ? 'medicine' : 'task'} more than 3 times."
         });
         
         // Reset snooze count so it stops scheduling locally
@@ -169,10 +174,10 @@ class NotificationService {
         // Schedule next alarm in 5 minutes!
         await NotificationService().scheduleAlarm(
             id: docId.hashCode,
-            title: "\$type Snoozed",
+            title: "$type Snoozed",
             body: "Reminder in 5 minutes!",
             scheduledTime: DateTime.now().add(const Duration(minutes: 5)),
-            payload: "\$type|\$clusterId|\$docId|\$newSnoozeCount",
+            payload: "$type|$clusterId|$docId|$newSnoozeCount",
         );
       }
     }

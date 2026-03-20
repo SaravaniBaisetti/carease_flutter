@@ -9,6 +9,9 @@ class AlarmSyncService {
   StreamSubscription? _medicineSub;
   StreamSubscription? _taskSub;
 
+  final Set<int> _activeMedAlarmIds = {};
+  final Set<int> _activeTaskAlarmIds = {};
+
   AlarmSyncService({required this.clusterId});
 
   void startSync() {
@@ -43,13 +46,14 @@ class AlarmSyncService {
   }
 
   Future<void> _processMedicines(List<QueryDocumentSnapshot> docs) async {
+    final Set<int> currentMedIds = {};
+
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       final timeSlots = List<String>.from(data['timeSlots'] ?? []);
       final snoozeCount = data['snoozeCount'] ?? 0;
       final medName = data['name'] ?? 'Medicine';
 
-      // We need to verify if it was already taken today
       final lastTaken = data['lastTaken'] as Timestamp?;
       if (_isToday(lastTaken?.toDate())) continue;
 
@@ -57,32 +61,35 @@ class AlarmSyncService {
         final parsedTime = _parseTime(timeStr);
         if (parsedTime == null) continue;
 
-        // If time has passed today and not snoozed, skip
         if (parsedTime.isBefore(DateTime.now()) && snoozeCount == 0) continue;
 
         final alarmId = "${doc.id}_$timeStr".hashCode;
+        currentMedIds.add(alarmId);
         
-        DateTime scheduledTime = parsedTime;
-        if (snoozeCount > 0) {
-          // If in snooze state, it expects to ring in 5 mins from last action
-          // Since our NotificationService sets an exact 5 min alarm on snooze, here we just skip overriding it
-          // Or we can let it be handled entirely by the background isolate.
-          // To be safe against app re-opens, we don't clobber the snooze.
-          continue; 
-        }
+        if (snoozeCount > 0) continue; 
 
         await NotificationService().scheduleAlarm(
           id: alarmId,
           title: "Medicine Reminder",
           body: "Time to take $medName!",
-          scheduledTime: scheduledTime,
+          scheduledTime: parsedTime,
           payload: "medicine|$clusterId|${doc.id}|$snoozeCount",
         );
       }
     }
+
+    // Cancel old alarms
+    final toCancel = _activeMedAlarmIds.difference(currentMedIds);
+    for (int id in toCancel) {
+      await NotificationService().cancelAlarm(id);
+    }
+    _activeMedAlarmIds.clear();
+    _activeMedAlarmIds.addAll(currentMedIds);
   }
 
   Future<void> _processTasks(List<QueryDocumentSnapshot> docs) async {
+    final Set<int> currentTaskIds = {};
+
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
       final dueTimeStr = data['dueTime'];
@@ -97,10 +104,9 @@ class AlarmSyncService {
       if (parsedTime.isBefore(DateTime.now()) && snoozeCount == 0) continue;
 
       final alarmId = "${doc.id}_task".hashCode;
+      currentTaskIds.add(alarmId);
 
-      if (snoozeCount > 0) {
-        continue; // handled by snooze isolate
-      }
+      if (snoozeCount > 0) continue; 
 
       await NotificationService().scheduleAlarm(
         id: alarmId,
@@ -110,6 +116,13 @@ class AlarmSyncService {
         payload: "task|$clusterId|${doc.id}|$snoozeCount",
       );
     }
+
+    final toCancel = _activeTaskAlarmIds.difference(currentTaskIds);
+    for (int id in toCancel) {
+      await NotificationService().cancelAlarm(id);
+    }
+    _activeTaskAlarmIds.clear();
+    _activeTaskAlarmIds.addAll(currentTaskIds);
   }
 
   bool _isToday(DateTime? date) {
