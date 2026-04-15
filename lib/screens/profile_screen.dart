@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String role;
@@ -117,13 +118,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile saved successfully')),
+          SnackBar(content: Text(tr('profile_saved'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save profile: $e')),
+          SnackBar(content: Text('${tr('failed_save_profile')} ${e.toString()}')),
         );
       }
     } finally {
@@ -171,7 +172,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Profile'),
+        title: Text(tr('my_profile_title')),
+        elevation: 0,
         actions: [
           if (isSaving)
             const Center(child: Padding(padding: EdgeInsets.only(right: 20), child: CircularProgressIndicator()))
@@ -194,46 +196,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 30),
             
-            const Text("Basic Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(tr('basic_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildTextField("Full Name", nameController),
-            _buildTextField("Phone Number", phoneController, keyboardType: TextInputType.phone),
+            _buildTextField(tr('full_name'), nameController),
+            _buildTextField(tr('phone_number'), phoneController, keyboardType: TextInputType.phone),
 
             if (widget.role == 'elder') ...[
               const SizedBox(height: 20),
-              const Text("Health Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(tr('health_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildTextField("Age", ageController, keyboardType: TextInputType.number)),
+                  Expanded(child: _buildTextField(tr('age'), ageController, keyboardType: TextInputType.number)),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField("Blood Group", bloodGroupController)),
+                  Expanded(child: _buildTextField(tr('blood_group'), bloodGroupController)),
                 ],
               ),
               Row(
                 children: [
-                  Expanded(child: _buildTextField("Height (cm/in)", heightController)),
+                  Expanded(child: _buildTextField(tr('height'), heightController)),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField("Weight", weightController)),
+                  Expanded(child: _buildTextField(tr('weight'), weightController)),
                 ],
               ),
-              _buildTextField("Medical Conditions", medicalConditionsController, maxLines: 3),
+              _buildTextField(tr('medical_conditions'), medicalConditionsController, maxLines: 3),
               
               const SizedBox(height: 20),
-              const Text("Emergency Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+              Text(tr('emergency_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
               const SizedBox(height: 8),
-              const Text("These medications will be displayed during an active SOS.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(tr('emergency_meds_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 8),
-              _buildTextField("Emergency Medications (e.g., Nitroglycerin)", emergencyMedicationController, maxLines: 3),
+              _buildTextField(tr('emergency_meds'), emergencyMedicationController, maxLines: 3),
               const SizedBox(height: 16),
-              const Text("Custom Emergency Contacts", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(tr('custom_emergency_contacts'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 8),
-              _buildTextField("Phone Numbers (comma separated)", emergencyContactsController, maxLines: 2, keyboardType: TextInputType.phone),
+              _buildTextField(tr('comma_separated_phones'), emergencyContactsController, maxLines: 2, keyboardType: TextInputType.phone),
             ] else ...[
               const SizedBox(height: 20),
-              const Text("Role Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(tr('role_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              _buildTextField("Relation to Elder (e.g., Son, Nurse)", relationController),
+              _buildTextField(tr('relation_to_elder'), relationController),
             ],
 
             const SizedBox(height: 30),

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'caregiver_dashboard.dart';
 import 'elder_dashboard.dart';
 import 'family_dashboard.dart';
+import '../widgets/language_picker.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/app_card.dart';
+import '../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -87,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Authentication Failed: ${e.toString()}')),
+          SnackBar(content: Text('${tr('auth_failed')}: ${e.toString()}')),
         );
       }
     }
@@ -120,111 +126,126 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(Icons.health_and_safety, size: 80, color: Theme.of(context).colorScheme.primary)
-                    .animate().fade(duration: 600.ms).scale(curve: Curves.easeOutBack),
-                const SizedBox(height: 16),
-                Text(
-                  "CareEase",
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ).animate().fade(delay: 200.ms).slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 8),
-                Text(
-                  isLoginMode ? "Welcome back" : "Create your account",
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
-                ).animate().fade(delay: 300.ms).slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 48),
-                
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextField(
-                          controller: emailController,
-                          decoration: const InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.email_outlined)),
-                          keyboardType: TextInputType.emailAddress,
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))
+                          ]
                         ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock_outline)),
-                        ),
-                        
-                        if (!isLoginMode) ...[
-                          const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: selectedRole,
-                            decoration: const InputDecoration(labelText: 'Role', prefixIcon: Icon(Icons.person_outline)),
-                            items: const [
-                              DropdownMenuItem(value: 'elder', child: Text('Elder (Create Your Cluster)')),
-                              DropdownMenuItem(value: 'caregiver', child: Text('Caregiver (Join Elder\'s Cluster)')),
-                              DropdownMenuItem(value: 'family', child: Text('Family Member (Join Elder\'s Cluster)')),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                selectedRole = value!;
-                              });
-                            },
-                          ),
-                          if (selectedRole != 'elder') ...[
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: inviteCodeController,
-                              decoration: const InputDecoration(
-                                labelText: 'Elder\'s Cluster Invite Code',
-                                prefixIcon: Icon(Icons.vpn_key_outlined),
-                                helperText: 'Get this code from the elder\'s profile screen',
+                        child: Icon(Icons.health_and_safety, size: 80, color: AppColors.primary),
+                      ).animate().fade(duration: 600.ms).scale(curve: Curves.easeOutBack),
+                      
+                      const SizedBox(height: 24),
+                      Text(
+                        tr("app_title"),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                              letterSpacing: 1.2,
+                            ),
+                      ).animate().fade(delay: 200.ms).slideY(begin: 0.2, end: 0),
+                      
+                      const SizedBox(height: 8),
+                      Text(
+                        isLoginMode ? tr("welcome_back") : tr("create_account"),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
+                      ).animate().fade(delay: 300.ms).slideY(begin: 0.2, end: 0),
+                      
+                      const SizedBox(height: 48),
+                      
+                      AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppTextField(
+                              controller: emailController,
+                              label: tr("email"),
+                              prefixIcon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                            const SizedBox(height: 20),
+                            AppTextField(
+                              controller: passwordController,
+                              label: tr("password"),
+                              prefixIcon: Icons.lock_outline,
+                              obscureText: true,
+                            ),
+                            
+                            if (!isLoginMode) ...[
+                              const SizedBox(height: 20),
+                              DropdownButtonFormField<String>(
+                                isExpanded: true,
+                                value: selectedRole,
+                                decoration: InputDecoration(
+                                  labelText: tr("role"),
+                                  prefixIcon: const Icon(Icons.person_outline, color: AppColors.primary),
+                                ),
+                                items: [
+                                  DropdownMenuItem(value: 'elder', child: Text(tr("role_elder"))),
+                                  DropdownMenuItem(value: 'caregiver', child: Text(tr("role_caregiver"))),
+                                  DropdownMenuItem(value: 'family', child: Text(tr("role_family"))),
+                                ],
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedRole = value!;
+                                  });
+                                },
                               ),
+                              if (selectedRole != 'elder') ...[
+                                const SizedBox(height: 20),
+                                AppTextField(
+                                  controller: inviteCodeController,
+                                  label: tr("invite_code"),
+                                  prefixIcon: Icons.vpn_key_outlined,
+                                  helperText: tr("invite_helper"),
+                                ),
+                              ],
+                            ],
+        
+                            const SizedBox(height: 32),
+                            AppButton(
+                              text: isLoginMode ? tr("login_btn") : tr("signup_btn"),
+                              isLoading: isLoading,
+                              onPressed: handleAuthAction,
                             ),
                           ],
-                        ],
-
-                        const SizedBox(height: 30),
-                        if (isLoading)
-                          const Center(child: CircularProgressIndicator())
-                        else
-                          ElevatedButton(
-                            onPressed: handleAuthAction,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: Text(isLoginMode ? "Login" : "Sign Up", style: const TextStyle(fontSize: 18)),
-                          ),
-                      ],
-                    ),
+                        ),
+                      ).animate().fade(delay: 400.ms).slideY(begin: 0.1, end: 0),
+                      
+                      const SizedBox(height: 24),
+                      AppButton(
+                        variant: AppButtonVariant.text,
+                        text: isLoginMode ? tr("no_account") : tr("have_account"),
+                        onPressed: toggleMode,
+                      ).animate().fade(delay: 500.ms),
+                    ],
                   ),
-                ).animate().fade(delay: 400.ms).slideY(begin: 0.1, end: 0),
-                
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: toggleMode,
-                  child: Text(
-                    isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Login",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ).animate().fade(delay: 500.ms),
-              ],
-            ),
+                ),
+              ),
+              const Positioned(
+                top: 10,
+                right: 10,
+                child: LanguagePicker(),
+              ),
+            ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

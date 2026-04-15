@@ -5,6 +5,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'elder_detail_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
+import 'incoming_alert_screen.dart';
+import 'dart:async';
+import 'package:easy_localization/easy_localization.dart';
+import '../widgets/language_picker.dart';
+import '../widgets/theme_toggle_button.dart';
+import '../widgets/app_card.dart';
+import '../theme/app_colors.dart';
 
 class FamilyDashboard extends StatefulWidget {
   const FamilyDashboard({super.key});
@@ -17,6 +24,8 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
   final user = FirebaseAuth.instance.currentUser;
   List<String> clusterIds = [];
   bool isLoading = true;
+  final List<StreamSubscription> _alertSubscriptions = [];
+  final Set<String> _shownAlerts = {};
 
   @override
   void initState() {
@@ -43,27 +52,102 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
       debugPrint('Error loading family dashboard: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
+      _setupAlertListeners();
     }
+  }
+
+  void _setupAlertListeners() {
+    for (var sub in _alertSubscriptions) {
+      sub.cancel();
+    }
+    _alertSubscriptions.clear();
+
+    for (String cId in clusterIds) {
+      final sub = FirebaseFirestore.instance
+          .collection('elderClusters')
+          .doc(cId)
+          .collection('alerts')
+          .where('resolved', isEqualTo: false)
+          .snapshots()
+          .listen((snapshot) async {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final alertId = change.doc.id;
+            final alertData = change.doc.data();
+
+            if (alertData != null &&
+                (alertData['type'] == 'SOS' ||
+                    alertData['type'] == 'CALL_REQUEST') &&
+                !_shownAlerts.contains(alertId)) {
+              _shownAlerts.add(alertId);
+
+              final clusterDoc = await FirebaseFirestore.instance
+                  .collection('elderClusters')
+                  .doc(cId)
+                  .get();
+              final eId = clusterDoc.data()?['elderId'];
+              String eName = "Elder";
+              if (eId != null) {
+                final profile = await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(eId)
+                    .collection('profile')
+                    .doc(eId)
+                    .get();
+                eName = profile.data()?['name'] ?? "Elder";
+              }
+
+              if (mounted) {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => IncomingAlertScreen(
+                              clusterId: cId,
+                              alertId: alertId,
+                              elderName: eName,
+                              alertType: alertData['type'],
+                            )));
+              }
+            }
+          }
+        }
+      });
+      _alertSubscriptions.add(sub);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _alertSubscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
   }
 
   void _showJoinClusterDialog() {
     final codeController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Follow an Elder'),
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(tr('follow_elder_title'),
+            style: const TextStyle(
+                color: AppColors.secondary, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Enter the Cluster Invite Code to join their care network.'),
-            const SizedBox(height: 16),
+            Text(tr('follow_elder_desc'),
+                style: const TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 20),
             TextField(
               controller: codeController,
-              decoration: const InputDecoration(
-                labelText: 'Invite Code',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('invite_code_label'),
+                prefixIcon: const Icon(Icons.vpn_key_outlined,
+                    color: AppColors.secondary),
               ),
             ),
           ],
@@ -71,42 +155,56 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(tr('cancel'),
+                style: const TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
               if (codeController.text.trim().isEmpty) return;
-              
+
               Navigator.pop(context);
               setState(() => isLoading = true);
-              
+
               try {
                 final clusterId = codeController.text.trim();
-                final clusterDoc = await FirebaseFirestore.instance.collection('elderClusters').doc(clusterId).get();
-                
+                final clusterDoc = await FirebaseFirestore.instance
+                    .collection('elderClusters')
+                    .doc(clusterId)
+                    .get();
+
                 if (!clusterDoc.exists) {
-                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid Invite Code.')));
-                   setState(() => isLoading = false);
-                   return;
+                  if (mounted)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(tr('invalid_invite'))));
+                  setState(() => isLoading = false);
+                  return;
                 }
-                
-                // Add family member to cluster
-                await FirebaseFirestore.instance.collection('elderClusters').doc(clusterId).update({
+
+                await FirebaseFirestore.instance
+                    .collection('elderClusters')
+                    .doc(clusterId)
+                    .update({
                   'familyMembers': FieldValue.arrayUnion([user!.uid]),
                 });
-                
-                // Add cluster to user doc
-                await FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
+
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user!.uid)
+                    .update({
                   'clusterIds': FieldValue.arrayUnion([clusterId]),
                 });
-                
-                _loadData(); // reload
+
+                _loadData();
               } catch (e) {
-                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error joining: $e')));
-                 setState(() => isLoading = false);
+                if (mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${tr('error_joining')} $e')));
+                setState(() => isLoading = false);
               }
             },
-            child: const Text('Join'),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.secondary),
+            child: Text(tr('join_btn')),
           ),
         ],
       ),
@@ -116,33 +214,43 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+          backgroundColor: AppColors.background,
+          body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      backgroundColor: Colors.blue.shade50,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Row(
           children: [
-            Icon(Icons.family_restroom, color: Colors.blue.shade800),
+            const Icon(Icons.family_restroom, color: AppColors.secondary),
             const SizedBox(width: 8),
-            const Text("Family Overview", style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('family_overview'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
+          const ThemeToggleButton(isCompact: true),
+          const LanguagePicker(),
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen(role: 'family')))
-                .then((_) => _loadData());
+              Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(role: 'family')))
+                  .then((_) => _loadData());
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: AppColors.error),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()));
               }
             },
           )
@@ -151,51 +259,110 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showJoinClusterDialog,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Follow Elder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.blue.shade800,
+        label: Text(tr('follow_elder'),
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.secondary,
+        elevation: 8,
       ).animate().slideY(begin: 1.0, duration: 600.ms),
-      body: clusterIds.isEmpty
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/family_bg.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.black.withOpacity(0.6),
+                Colors.transparent,
+                Colors.black.withOpacity(0.8),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SafeArea(
+            child: clusterIds.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.health_and_safety, size: 80, color: Colors.blue.shade300).animate().scale(),
-                  const SizedBox(height: 16),
-                  Text("You aren't following any elders.", style: TextStyle(fontSize: 18, color: Colors.grey.shade700)).animate().fade(delay: 200.ms),
+                  Icon(Icons.health_and_safety,
+                          size: 80,
+                          color: AppColors.textSecondary.withOpacity(0.3))
+                      .animate()
+                      .scale(),
+                  const SizedBox(height: 24),
+                  Text(tr('not_following_elders'),
+                          style: TextStyle(
+                              fontSize: 22,
+                              color: AppColors.textPrimary.withOpacity(0.6),
+                              fontWeight: FontWeight.bold))
+                      .animate()
+                      .fade(delay: 200.ms),
                   const SizedBox(height: 8),
-                  Text("Tap 'Follow Elder' to join a cluster.", style: TextStyle(color: Colors.grey.shade600)).animate().fade(delay: 300.ms),
+                  Text(tr('tap_follow_elder'),
+                          style:
+                              const TextStyle(color: AppColors.textSecondary))
+                      .animate()
+                      .fade(delay: 300.ms),
                 ],
               ),
             )
           : RefreshIndicator(
               onRefresh: _loadData,
               child: ListView.builder(
-                padding: const EdgeInsets.all(20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 itemCount: clusterIds.length,
                 itemBuilder: (context, index) {
                   return FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance.collection('elderClusters').doc(clusterIds[index]).get(),
+                    future: FirebaseFirestore.instance
+                        .collection('elderClusters')
+                        .doc(clusterIds[index])
+                        .get(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const Card(child: Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator())));
-                      
-                      final clusterData = snapshot.data!.data() as Map<String, dynamic>?;
+                      if (!snapshot.hasData)
+                        return const AppCard(
+                            child: Center(child: CircularProgressIndicator()));
+
+                      final clusterData =
+                          snapshot.data!.data() as Map<String, dynamic>?;
                       if (!snapshot.data!.exists || clusterData == null) {
-                        return const SizedBox.shrink(); // Invalid cluster
+                        return const SizedBox.shrink();
                       }
-                      
+
                       final elderId = clusterData['elderId'];
                       final clusterId = snapshot.data!.id;
 
                       return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('users').doc(elderId).collection('profile').doc(elderId).get(),
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(elderId)
+                            .collection('profile')
+                            .doc(elderId)
+                            .get(),
                         builder: (context, profileSnapshot) {
                           String elderName = "Loading...";
-                          if (profileSnapshot.connectionState == ConnectionState.done) {
-                            elderName = (profileSnapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Elder Profiles Missing';
+                          if (profileSnapshot.connectionState ==
+                              ConnectionState.done) {
+                            elderName = (profileSnapshot.data?.data()
+                                    as Map<String, dynamic>?)?['name'] ??
+                                'Elder Profiles Missing';
                           }
 
-                          return _buildElderCard(context, clusterId, elderName, elderId)
-                            .animate().fade(duration: 400.ms, delay: (index * 100).ms).slideX(begin: 0.1);
+                          return _buildElderCard(
+                                  context, clusterId, elderName, elderId)
+                              .animate()
+                              .fade(duration: 400.ms, delay: (index * 100).ms)
+                              .slideX(begin: 0.1);
                         },
                       );
                     },
@@ -203,95 +370,120 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
                 },
               ),
             ),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildElderCard(BuildContext context, String clusterId, String elderName, String elderId) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+  Widget _buildElderCard(BuildContext context, String clusterId,
+      String elderName, String elderId) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: AppCard(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ElderDetailScreen(clusterId: clusterId, elderName: elderName),
+              builder: (_) =>
+                  ElderDetailScreen(clusterId: clusterId, elderName: elderName),
             ),
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.blue.shade100,
-                    child: Icon(Icons.person, color: Colors.blue.shade800, size: 36),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(elderName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        const SizedBox(height: 4),
-                        // Get active SOS status
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('elderClusters')
-                              .doc(clusterId)
-                              .collection('alerts')
-                              .where('resolved', isEqualTo: false)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) return const Text('Checking safety...', style: TextStyle(color: Colors.grey));
-                            
-                            if (snapshot.data!.docs.isNotEmpty) {
-                              return Row(
-                                children: [
-                                  const Icon(Icons.warning, color: Colors.red, size: 16),
-                                  const SizedBox(width: 4),
-                                  Text("${snapshot.data!.docs.length} Active Alert(s)!", style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                                ],
-                              );
-                            }
+                  child: const Icon(Icons.person,
+                      color: AppColors.secondary, size: 36),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(elderName,
+                          style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary)),
+                      const SizedBox(height: 6),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('elderClusters')
+                            .doc(clusterId)
+                            .collection('alerts')
+                            .where('resolved', isEqualTo: false)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData)
+                            return Text(tr('checking_safety'),
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary));
+
+                          if (snapshot.data!.docs.isNotEmpty) {
                             return Row(
                               children: [
-                                Icon(Icons.safety_check, color: Colors.green.shade600, size: 16),
-                                const SizedBox(width: 4),
-                                Text("Safe & Secure", style: TextStyle(color: Colors.green.shade600, fontWeight: FontWeight.bold)),
+                                const Icon(Icons.warning_rounded,
+                                    color: AppColors.error, size: 18),
+                                const SizedBox(width: 6),
+                                Text(
+                                    "${snapshot.data!.docs.length} ${tr('active_alerts_exclaim')}",
+                                    style: const TextStyle(
+                                        color: AppColors.error,
+                                        fontWeight: FontWeight.bold)),
                               ],
                             );
-                          },
-                        ),
-                      ],
-                    ),
+                          }
+                          return Row(
+                            children: [
+                              const Icon(Icons.safety_check_rounded,
+                                  color: AppColors.success, size: 18),
+                              const SizedBox(width: 6),
+                              Text(tr('safe_and_secure'),
+                                  style: const TextStyle(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.bold)),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  Icon(Icons.chevron_right, color: Colors.blue.shade300, size: 32),
+                ),
+                const Icon(Icons.chevron_right,
+                    color: AppColors.textSecondary, size: 28),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: AppColors.background.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.1))),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(tr('tap_to_view_details'),
+                      style: const TextStyle(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16)),
+                  const Icon(Icons.analytics_rounded,
+                      color: AppColors.secondary)
                 ],
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(16)
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Tap to view full health & care details", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
-                    Icon(Icons.analytics, color: Colors.blue.shade400)
-                  ],
-                ),
-              )
-            ],
-          ),
+            )
+          ],
         ),
       ),
     );

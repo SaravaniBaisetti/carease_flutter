@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:typed_data';
+import 'package:careasen/services/push_notification_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(NotificationResponse notificationResponse) async {
@@ -164,6 +165,12 @@ class NotificationService {
           "resolvedBy": null,
           "description": "Elder missed or snoozed ${type == 'medicine' ? 'medicine' : 'task'} more than 3 times."
         });
+        
+        // Trigger Push Notification instantly using our native client-side service
+        await PushNotificationService.triggerAlertNotification(
+          clusterId, 
+          type == 'medicine' ? "MISSED_MEDICATION" : "MISSED_TASK"
+        );
         
         // Reset snooze count so it stops scheduling locally
         await docRef.update({'snoozeCount': 0, 'status': 'missed'});

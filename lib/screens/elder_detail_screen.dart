@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'elder_performance_screen.dart';
 import 'medicine_management_screen.dart';
 import 'task_management_screen.dart';
 import 'alerts_dashboard.dart';
+import 'checkin_history_screen.dart';
 
 class ElderDetailScreen extends StatefulWidget {
   final String clusterId;
@@ -27,7 +30,7 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadElderProfile();
   }
 
@@ -101,11 +104,12 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
           labelColor: Theme.of(context).colorScheme.primary,
           unselectedLabelColor: Colors.grey,
           indicatorColor: Theme.of(context).colorScheme.primary,
-          tabs: const [
-            Tab(text: "Overview"),
-            Tab(text: "Tasks"),
-            Tab(text: "Medicines"),
-            Tab(text: "Alerts"),
+          tabs: [
+            Tab(text: tr('overview_tab')),
+            Tab(text: tr('tasks_tab')),
+            Tab(text: tr('medicines_tab')),
+            Tab(text: tr('performance_tab')),
+            Tab(text: tr('alerts_tab')),
           ],
         ),
       ),
@@ -144,8 +148,8 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                             Text(widget.elderName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                             if (!isLoadingProfile && elderProfile != null) ...[
                               const SizedBox(height: 4),
-                              Text("${elderProfile!['age']} yrs • Blood: ${elderProfile!['bloodGroup']}", style: const TextStyle(color: Colors.white70)),
-                              Text("Wt: ${elderProfile!['weight']} • Ht: ${elderProfile!['height']}", style: const TextStyle(color: Colors.white70)),
+                              Text("${elderProfile!['age']} ${tr('yrs_blood')} ${elderProfile!['bloodGroup']}", style: const TextStyle(color: Colors.white70)),
+                              Text("${tr('wt')} ${elderProfile!['weight']} • ${tr('ht')} ${elderProfile!['height']}", style: const TextStyle(color: Colors.white70)),
                             ]
                           ],
                         ),
@@ -158,33 +162,39 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                 
                 // Medical Info
                 if (!isLoadingProfile && elderProfile != null) ...[
-                  const Text("Medical Conditions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(tr('medical_conditions_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 8),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(elderProfile!['medicalConditions']?.toString().isNotEmpty == true 
                           ? elderProfile!['medicalConditions'] 
-                          : "No conditions listed."),
+                          : tr('no_conditions_listed')),
                     ),
                   ).animate().fade(delay: 100.ms),
                   
                   const SizedBox(height: 20),
-                  const Text("Emergency Medications", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red)),
+                  Text(tr('emergency_meds_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red)),
                   const SizedBox(height: 8),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(elderProfile!['emergencyMedication']?.toString().isNotEmpty == true 
                           ? elderProfile!['emergencyMedication'] 
-                          : "No emergency medications listed."),
+                          : tr('no_emergency_meds')),
                     ),
                   ).animate().fade(delay: 200.ms),
                 ],
 
                 const SizedBox(height: 20),
                 // Daily Check-in info
-                const Text("Latest Health Check-in", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(tr('latest_health_check_in'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    const Icon(Icons.history, color: Colors.grey, size: 20),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
@@ -195,24 +205,45 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                       .limit(1)
                       .snapshots(),
                   builder: (context, snapshot) {
+                    Widget innerCard;
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text("No check-ins yet.")));
-                    }
-                    var data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-                    String moodEmoji = "😐";
-                    if (data['mood'] == 'Great') moodEmoji = "😁";
-                    if (data['mood'] == 'Poor') moodEmoji = "😞";
+                      innerCard = Padding(padding: const EdgeInsets.all(16), child: Text(tr('no_check_ins_yet')));
+                    } else {
+                      var data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                      String moodEmoji = "❓";
+                      if (data['mood'] == 'Great') moodEmoji = "😊";
+                      if (data['mood'] == 'Okay') moodEmoji = "😐";
+                      if (data['mood'] == 'Not Well') moodEmoji = "🤕";
 
-                    return Card(
-                      child: Padding(
+                      innerCard = Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
                             Text(moodEmoji, style: const TextStyle(fontSize: 40)),
                             const SizedBox(width: 16),
-                            Expanded(child: Text(data['notes']?.toString().isNotEmpty == true ? data['notes'] : "No notes provided.")),
+                            Expanded(child: Text(data['details']?.toString().isNotEmpty == true ? data['details'] : tr('no_notes_provided'), style: const TextStyle(fontSize: 16))),
+                            const Icon(Icons.chevron_right, color: Colors.grey),
                           ],
                         ),
+                      );
+                    }
+
+                    return Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CheckinHistoryScreen(
+                                clusterId: widget.clusterId,
+                                elderName: widget.elderName,
+                              ),
+                            ),
+                          );
+                        },
+                        child: innerCard,
                       ),
                     );
                   },
@@ -227,7 +258,13 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
           // Tab 3: Medicines
           MedicineManagementScreen(clusterId: widget.clusterId),
           
-          // Tab 4: Alerts
+          // Tab 4: Performance
+          ElderPerformanceScreen(
+            clusterId: widget.clusterId,
+            elderName: widget.elderName,
+          ),
+          
+          // Tab 5: Alerts
           AlertsDashboard(clusterId: widget.clusterId),
         ],
       ),

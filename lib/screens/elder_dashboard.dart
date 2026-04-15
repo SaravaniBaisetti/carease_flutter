@@ -5,7 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:easy_localization/easy_localization.dart';
+import '../widgets/language_picker.dart';
+import '../widgets/theme_toggle_button.dart';
 import 'elder_medicine_view.dart';
 import 'elder_task_view.dart';
 import 'daily_check_in_screen.dart';
@@ -13,6 +15,13 @@ import 'login_screen.dart';
 import 'sos_active_screen.dart';
 import 'profile_screen.dart';
 import '../services/alarm_sync_service.dart';
+import 'in_app_ring_screen.dart';
+import '../services/ai_voice_assistant.dart';
+import '../services/push_notification_service.dart';
+import '../widgets/global_voice_bot.dart';
+import '../widgets/glass_container.dart';
+import '../theme/app_colors.dart';
+import 'dart:ui';
 
 class ElderDashboard extends StatefulWidget {
   const ElderDashboard({super.key});
@@ -23,12 +32,20 @@ class ElderDashboard extends StatefulWidget {
 
 class _ElderDashboardState extends State<ElderDashboard> {
   final user = FirebaseAuth.instance.currentUser;
+  
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return tr('good_morning');
+    if (hour < 17) return tr('good_afternoon');
+    return tr('good_evening');
+  }
   bool isSosLoading = false;
   String? clusterId;
   String? caregiverPhone;
+  String elderName = "there";
   StreamSubscription<Position>? _locationSubscription;
   AlarmSyncService? _alarmSyncService;
-  
+
   @override
   void dispose() {
     _locationSubscription?.cancel();
@@ -39,50 +56,90 @@ class _ElderDashboardState extends State<ElderDashboard> {
   @override
   void initState() {
     super.initState();
+    elderName = user?.displayName ?? "there";
     _loadClusterData();
   }
 
   Future<void> _loadClusterData() async {
-     final elderDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
-      
-      final cId = elderDoc.data()?['elderClusterId'];
-      
-      if (cId != null) {
-        // Fetch the caregiver's phone number as the primary emergency contact
-        final clusterDoc = await FirebaseFirestore.instance.collection('elderClusters').doc(cId).get();
-        final caregiverId = clusterDoc.data()?['primaryCaregiverId'];
-        
-        if (caregiverId != null) {
-          final caregiverDoc = await FirebaseFirestore.instance.collection('users').doc(caregiverId).collection('profile').doc(caregiverId).get();
-          if (mounted) {
-            setState(() {
-              caregiverPhone = caregiverDoc.data()?['phone']; 
-            });
-          }
+    final elderDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .get();
+
+    final elderProfileDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .collection('profile')
+        .doc(user!.uid)
+        .get();
+
+    if (elderProfileDoc.exists && elderProfileDoc.data()!.containsKey('fullName')) {
+      final name = elderProfileDoc.data()!['fullName'];
+      if (name != null && name.toString().trim().isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            elderName = name.toString().split(' ').first;
+          });
         }
       }
+    }
 
-      if (mounted) {
-        setState(() {
-           clusterId = cId;
-        });
-        
-        // Start live sync of alarms once we have clusterId
-        _alarmSyncService = AlarmSyncService(clusterId: cId!);
-        _alarmSyncService!.startSync();
+    final cId = elderDoc.data()?['elderClusterId'];
+
+    if (cId != null) {
+      final clusterDoc = await FirebaseFirestore.instance
+          .collection('elderClusters')
+          .doc(cId)
+          .get();
+      final caregiverId = clusterDoc.data()?['primaryCaregiverId'];
+
+      if (caregiverId != null) {
+        final caregiverDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(caregiverId)
+            .collection('profile')
+            .doc(caregiverId)
+            .get();
+        if (mounted) {
+          setState(() {
+            caregiverPhone = caregiverDoc.data()?['phone'];
+          });
+        }
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        clusterId = cId;
+      });
+
+      _alarmSyncService = AlarmSyncService(
+          clusterId: cId!,
+          onRingTriggered: (type, clusterId, docId, data) {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => InAppRingScreen(
+                          clusterId: clusterId,
+                          docId: docId,
+                          type: type,
+                          title: data['title'] ?? data['name'] ?? 'Reminder',
+                          description: data['description'] ??
+                              'Dosage: ${data["dosage"] ?? "N/A"}',
+                          snoozeCount: data['snoozeCount'] ?? 0,
+                        )));
+          });
+      _alarmSyncService!.startSync();
+    }
   }
 
   Future<void> _callCaregiver() async {
     if (clusterId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No cluster assigned.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr('no_cluster_assigned'))));
       return;
     }
-    
-    // Trigger in-app call request
+
     try {
       await FirebaseFirestore.instance
           .collection('elderClusters')
@@ -94,15 +151,21 @@ class _ElderDashboardState extends State<ElderDashboard> {
         "timestamp": FieldValue.serverTimestamp(),
         "resolved": false,
       });
-      
+
+      await PushNotificationService.triggerAlertNotification(
+          clusterId!, "CALL_REQUEST");
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Calling Caregiver... please wait.'), backgroundColor: Colors.green),
+          SnackBar(
+              content: Text(tr('calling_caregiver')),
+              backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Call failed: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('${tr('call_failed')} $e')));
       }
     }
   }
@@ -110,7 +173,6 @@ class _ElderDashboardState extends State<ElderDashboard> {
   Future<void> triggerSOS() async {
     setState(() => isSosLoading = true);
     try {
-      // 1. Check Permissions
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) throw Exception('Location services are disabled.');
@@ -125,17 +187,16 @@ class _ElderDashboardState extends State<ElderDashboard> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        if (mounted) throw Exception('Location permissions are permanently denied, we cannot request permissions.');
+        if (mounted)
+          throw Exception('Location permissions are permanently denied.');
       }
 
-      // 2. Get Location
       Position position = await Geolocator.getCurrentPosition();
 
       if (clusterId == null) {
-         if (mounted) throw Exception('No cluster assigned.');
+        if (mounted) throw Exception(tr('no_cluster_assigned'));
       }
 
-      // 3. Create Alert
       final alertRef = await FirebaseFirestore.instance
           .collection('elderClusters')
           .doc(clusterId)
@@ -153,7 +214,8 @@ class _ElderDashboardState extends State<ElderDashboard> {
         }
       });
 
-      // 4. Write initial live location
+      await PushNotificationService.triggerAlertNotification(clusterId!, "SOS");
+
       await FirebaseFirestore.instance
           .collection('elderClusters')
           .doc(clusterId)
@@ -166,10 +228,10 @@ class _ElderDashboardState extends State<ElderDashboard> {
         "alertId": alertRef.id,
       });
 
-      // 5. Start live location stream
       _locationSubscription?.cancel();
       _locationSubscription = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10), // Update every 10m movement
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high, distanceFilter: 10),
       ).listen((Position pos) {
         FirebaseFirestore.instance
             .collection('elderClusters')
@@ -183,7 +245,6 @@ class _ElderDashboardState extends State<ElderDashboard> {
         });
       });
 
-      // Auto-cancel stream after 30 mins as a safety measure
       Future.delayed(const Duration(minutes: 30), () {
         _locationSubscription?.cancel();
       });
@@ -199,212 +260,508 @@ class _ElderDashboardState extends State<ElderDashboard> {
             ),
           ),
         ).then((_) {
-          // When popping back from active screen, ensure stream stops
           _locationSubscription?.cancel();
         });
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('SOS Failed: ${e.toString()}')),
+          SnackBar(content: Text('${tr('sos_failed')} ${e.toString()}')),
         );
       }
     }
     if (mounted) setState(() => isSosLoading = false);
   }
 
-  Widget _buildActionButton({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback? onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          decoration: BoxDecoration(
-            color: onTap == null ? Colors.grey.shade300 : color,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              if (onTap != null)
-                BoxShadow(color: color.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))
-            ]
-          ),
-          child: Column(
+  Future<void> _startGeneralVoiceAssistant() async {
+    if (clusterId == null) return;
+    final localeCode = context.locale.languageCode;
+
+    await AIVoiceAssistant().stopAll();
+
+    if (mounted) {
+      GlobalVoiceBot.show(
+        context,
+        clusterId: clusterId!,
+        languageCode: localeCode,
+        elderName: elderName,
+        onTriggerSos: triggerSOS,
+        onOpenTasks: () {
+          GlobalVoiceBot.hide();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ElderTaskView(clusterId: clusterId!)));
+        },
+        onOpenMedicines: () {
+          GlobalVoiceBot.hide();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ElderMedicineView(clusterId: clusterId!)));
+        },
+      );
+    }
+  }
+
+  Widget _buildTopNav() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
             children: [
-              Icon(icon, size: 48, color: Colors.white),
-              const SizedBox(height: 12),
+              const Icon(Icons.favorite_rounded, color: Colors.cyanAccent, size: 28),
+              const SizedBox(width: 8),
               Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                tr('my_dashboard'),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                ),
               ),
             ],
           ),
-        ),
+          Row(
+            children: [
+              const LanguagePicker(),
+              if (clusterId != null)
+                IconButton(
+                  icon: const Icon(Icons.share, size: 28, color: Colors.white),
+                  tooltip: tr('share_invite_code'),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: clusterId!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(tr('invite_copied'))),
+                    );
+                  },
+                ),
+              IconButton(
+                icon: const Icon(Icons.person, size: 28, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ProfileScreen(role: 'elder')));
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout, size: 28, color: Colors.pinkAccent),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                        context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                  }
+                },
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildGreeting() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "${_getGreeting()}, $elderName!",
+            style: const TextStyle(
+                fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tr('how_are_you_today'),
+            style: TextStyle(
+                fontSize: 18, color: Colors.white.withOpacity(0.7), fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeartDisplay() {
+    return Container(
+      height: 280,
+      width: double.infinity,
+      alignment: Alignment.center,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // The 3D Heart Asset
+          Image.asset(
+            'assets/images/3d_heart_asset.png',
+            fit: BoxFit.contain,
+            colorBlendMode: BlendMode.plus,
+          )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.03, 1.03), duration: 800.ms, curve: Curves.easeInOut),
+          
+          // Floating Badges
+          Positioned(
+            left: 20,
+            bottom: 40,
+            child: GlassContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              borderRadius: 20,
+              child: Row(
+                children: [
+                  const Icon(Icons.favorite, color: Colors.pinkAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    "SpO2 98.5%",
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ).animate().fade(delay: 400.ms).slideX(begin: -0.2),
+          ),
+          Positioned(
+            right: 20,
+            top: 40,
+            child: GlassContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              borderRadius: 20,
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Connected",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ).animate().fade(delay: 500.ms).slideX(begin: 0.2),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthOverview() {
+    return GlassContainer(
+      padding: const EdgeInsets.all(20),
+      onTap: clusterId == null
+          ? null
+          : () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => DailyCheckInScreen(clusterId: clusterId!)));
+            },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr('daily_check_in'),
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                tr('tap_to_record'),
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.7), fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          Container(
+            height: 60,
+            width: 60,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CircularProgressIndicator(
+                  value: 0.8,
+                  strokeWidth: 6,
+                  color: Colors.cyanAccent,
+                  backgroundColor: Colors.white.withOpacity(0.1),
+                ),
+                Center(
+                  child: const Icon(Icons.check, color: Colors.cyanAccent, size: 28),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsGrid() {
+    return Row(
+      children: [
+        Expanded(
+          child: GlassContainer(
+            onTap: clusterId == null
+                ? null
+                : () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => ElderMedicineView(clusterId: clusterId!)));
+                  },
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurpleAccent.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.medication_liquid_rounded, color: Colors.white, size: 32),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  tr('medicines'),
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                )
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: GlassContainer(
+            onTap: clusterId == null
+                ? null
+                : () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => ElderTaskView(clusterId: clusterId!)));
+                  },
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.greenAccent.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.content_paste_rounded, color: Colors.white, size: 32),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  tr('tasks'),
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                )
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSOSAndVoice() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: GestureDetector(
+            onTap: isSosLoading ? null : triggerSOS,
+            child: GlassContainer(
+              color: Colors.redAccent.withOpacity(0.3),
+              border: Border.all(color: Colors.redAccent.withOpacity(0.8), width: 2),
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: isSosLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.warning_rounded, color: Colors.white, size: 40),
+                        const SizedBox(height: 8),
+                        Text(
+                          tr('sos_btn_text'),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 1,
+          child: GestureDetector(
+            onTap: clusterId == null ? null : _startGeneralVoiceAssistant,
+            child: GlassContainer(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.mic_rounded, color: Colors.white, size: 40),
+                  const SizedBox(height: 8),
+                  Text(
+                    tr('ai_voice_assistant'),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCaregiverCall() {
+    return GlassContainer(
+      onTap: _callCaregiver,
+      color: Colors.cyan.withOpacity(0.2),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.phone_rounded, color: Colors.white, size: 28),
+          const SizedBox(width: 12),
+          Text(
+            tr('call_caregiver_btn'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPortraitLayout() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildTopNav(),
+          _buildGreeting(),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHealthOverview().animate().fade(delay: 200.ms).slideY(begin: 0.2),
+                const SizedBox(height: 16),
+                _buildQuickActionsGrid().animate().fade(delay: 300.ms).slideY(begin: 0.2),
+                const SizedBox(height: 16),
+                _buildSOSAndVoice().animate().fade(delay: 400.ms).slideY(begin: 0.2),
+                const SizedBox(height: 16),
+                _buildCaregiverCall().animate().fade(delay: 500.ms).slideY(begin: 0.2),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left Panel (Greeting & Heart & SOS)
+        Expanded(
+          flex: 5,
+          child: SingleChildScrollView(
+             physics: const BouncingScrollPhysics(),
+             child: Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 _buildTopNav(),
+                 _buildGreeting(),
+                 const SizedBox(height: 24),
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 20),
+                   child: _buildSOSAndVoice().animate().fade(delay: 400.ms).slideY(begin: 0.2),
+                 ),
+                 const SizedBox(height: 40),
+               ],
+             ),
+          ),
+        ),
+        // Right Panel (Appointments, overviews, quick actions)
+        Expanded(
+          flex: 4,
+          child: Container(
+            color: Colors.black.withOpacity(0.2),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 20),
+                  _buildHealthOverview().animate().fade(delay: 200.ms).slideY(begin: 0.2),
+                  const SizedBox(height: 20),
+                  _buildQuickActionsGrid().animate().fade(delay: 300.ms).slideY(begin: 0.2),
+                  const SizedBox(height: 20),
+                  _buildCaregiverCall().animate().fade(delay: 500.ms).slideY(begin: 0.2),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Establishing a dependency on EasyLocalization so this widget rebuilds on language change
+    final _ = context.locale;
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      appBar: AppBar(
-        title: const Text("My Dashboard", style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          if (clusterId != null)
-            IconButton(
-              icon: const Icon(Icons.share, size: 28),
-              tooltip: 'Share Invite Code',
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: clusterId!));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invite Code copied to clipboard!')),
-                );
+      backgroundColor: Colors.black, // Fallback underlying color
+      extendBodyBehindAppBar: true,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/dashboard_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.black.withOpacity(0.7),
+                Colors.transparent,
+                Colors.black.withOpacity(0.7),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 800) {
+                  return _buildLandscapeLayout();
+                } else {
+                  return _buildPortraitLayout();
+                }
               },
             ),
-          IconButton(
-            icon: const Icon(Icons.person, size: 28),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen(role: 'elder')));
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, size: 28),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
-            },
-          )
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _callCaregiver,
-        backgroundColor: Colors.teal.shade800,
-        icon: const Icon(Icons.phone, color: Colors.white),
-        label: const Text("Call Caregiver", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-      ).animate().slideY(begin: 1.0, duration: 600.ms, curve: Curves.easeOutBack),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Greeting -> Routes to Check In
-              GestureDetector(
-                onTap: clusterId == null ? null : () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => DailyCheckInScreen(clusterId: clusterId!)));
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2), width: 2),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                        child: Icon(Icons.favorite, size: 36, color: Theme.of(context).colorScheme.primary),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Daily Check-in", style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold)),
-                            Text(
-                              "How are you today?",
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.primary),
-                    ],
-                  ),
-                ).animate().fade(duration: 400.ms).slideX(),
-              ),
-              
-              const Spacer(),
-              
-              // Big Breathing SOS Button
-              Center(
-                child: GestureDetector(
-                  onTap: isSosLoading ? null : triggerSOS,
-                  child: Container(
-                    height: 220,
-                    width: 220,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.redAccent,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.5),
-                          blurRadius: 30,
-                          spreadRadius: 10,
-                        )
-                      ]
-                    ),
-                    child: Center(
-                      child: isSosLoading 
-                        ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 4)
-                        : const Text("SOS", style: TextStyle(fontSize: 56, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
-                    ),
-                  ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-                   .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 1.seconds, curve: Curves.easeInOutSine),
-                ),
-              ).animate().fade(delay: 200.ms).scale(),
-              
-              const Spacer(),
-              
-              // Action Buttons
-              Row(
-                children: [
-                  _buildActionButton(
-                    title: "Medicines",
-                    icon: Icons.medication_liquid_rounded,
-                    color: Colors.blueAccent,
-                    onTap: clusterId == null ? null : () {
-                       Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => ElderMedicineView(clusterId: clusterId!)),
-                      );
-                    },
-                  ).animate().fade(delay: 300.ms).slideY(begin: 0.2),
-                  const SizedBox(width: 16),
-                  _buildActionButton(
-                    title: "Tasks",
-                    icon: Icons.checklist_rtl_rounded,
-                    color: Colors.green,
-                    onTap: clusterId == null ? null : () {
-                       Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => ElderTaskView(clusterId: clusterId!)),
-                      );
-                    },
-                  ).animate().fade(delay: 400.ms).slideY(begin: 0.2),
-                ],
-              ),
-              const SizedBox(height: 80), // padding for FAB
-            ],
           ),
         ),
       ),
     );
   }
 }
-
-
-

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'sos_map_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 
 class IncomingAlertScreen extends StatefulWidget {
   final String clusterId;
@@ -24,10 +26,36 @@ class IncomingAlertScreen extends StatefulWidget {
 }
 
 class _IncomingAlertScreenState extends State<IncomingAlertScreen> {
+  StreamSubscription<DocumentSnapshot>? _alertSubscription;
+  bool _isHandled = false;
+
   @override
   void initState() {
     super.initState();
     _playRingtone();
+    _listenToAlertStatus();
+  }
+
+  void _listenToAlertStatus() {
+    _alertSubscription = FirebaseFirestore.instance
+        .collection('elderClusters')
+        .doc(widget.clusterId)
+        .collection('alerts')
+        .doc(widget.alertId)
+        .snapshots()
+        .listen((snapshot) {
+      if (_isHandled) return;
+      if (!snapshot.exists || (snapshot.data() != null && snapshot.data()!['resolved'] == true)) {
+        _isHandled = true;
+        _stopRingtone();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('alert_cancelled_by_elder'))),
+          );
+          Navigator.pop(context);
+        }
+      }
+    });
   }
 
   void _playRingtone() {
@@ -56,11 +84,13 @@ class _IncomingAlertScreenState extends State<IncomingAlertScreen> {
 
   @override
   void dispose() {
+    _alertSubscription?.cancel();
     _stopRingtone();
     super.dispose();
   }
 
   Future<void> _handleAccept() async {
+    _isHandled = true;
     _stopRingtone();
 
     if (widget.alertType == "SOS") {
@@ -89,6 +119,7 @@ class _IncomingAlertScreenState extends State<IncomingAlertScreen> {
   }
 
   Future<void> _handleDecline() async {
+    _isHandled = true;
     _stopRingtone();
     // Resolve the alert directly
     try {
@@ -110,7 +141,7 @@ class _IncomingAlertScreenState extends State<IncomingAlertScreen> {
   Widget build(BuildContext context) {
     final isSos = widget.alertType == "SOS";
     final Color bgColor = isSos ? Colors.red.shade900 : Colors.blue.shade900;
-    final String title = isSos ? "EMERGENCY SOS" : "Incoming Call Request";
+    final String title = isSos ? tr('emergency_sos_title') : tr('incoming_call_request');
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -178,7 +209,7 @@ class _IncomingAlertScreenState extends State<IncomingAlertScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text("Decline", style: TextStyle(color: Colors.white, fontSize: 16)),
+                      Text(tr('decline_btn'), style: const TextStyle(color: Colors.white, fontSize: 16)),
                     ],
                   ),
                   
@@ -200,7 +231,7 @@ class _IncomingAlertScreenState extends State<IncomingAlertScreen> {
                       .shimmer(duration: 1.seconds, color: Colors.white.withOpacity(0.5)),
                       
                       const SizedBox(height: 12),
-                      Text(isSos ? "View Map" : "Answer", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(isSos ? tr('view_map_btn') : tr('answer_btn'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],

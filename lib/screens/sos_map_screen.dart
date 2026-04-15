@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class SosMapScreen extends StatefulWidget {
@@ -67,7 +68,9 @@ class _SosMapScreenState extends State<SosMapScreen> {
     final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}');
     if (!await launchUrl(url)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open Google Maps')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('location_not_available'))),
+        );
       }
     }
   }
@@ -76,7 +79,9 @@ class _SosMapScreenState extends State<SosMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isLive ? 'Live Tracking: ${widget.elderName}' : 'SOS Location: ${widget.elderName}'),
+        title: Text(widget.isLive 
+          ? '${tr('live_tracking_prefix')}${widget.elderName}' 
+          : '${tr('sos_location_prefix')}${widget.elderName}'),
         backgroundColor: widget.isLive ? Colors.red[800] : Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -105,7 +110,7 @@ class _SosMapScreenState extends State<SosMapScreen> {
         }
 
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(child: Text(tr('awaiting_location')));
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>?;
@@ -188,7 +193,7 @@ class _SosMapScreenState extends State<SosMapScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.isLive ? "Live SOS Location" : "Last Known Location", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            Text(widget.isLive ? tr('live_sos_location') : tr('last_known_location'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                             const SizedBox(height: 4),
                             Text("${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}", style: const TextStyle(color: Colors.grey)),
                           ],
@@ -200,7 +205,7 @@ class _SosMapScreenState extends State<SosMapScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _openGoogleMaps(location),
                     icon: const Icon(Icons.navigation),
-                    label: const Text("Open in Google Maps"),
+                    label: Text(tr('open_in_google_maps')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,

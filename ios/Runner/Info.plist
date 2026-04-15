@@ -45,6 +45,10 @@
 	<string>CareEase requires access to your location to send accurate SOS alerts to your caregiver in an emergency.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>CareEase requires access to your location to send reliable SOS alerts to your caregiver in an emergency.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>CareEase requires access to the microphone for the AI voice assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>CareEase requires speech recognition to understand your voice commands.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

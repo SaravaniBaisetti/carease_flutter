@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SosActiveScreen extends StatefulWidget {
   final String clusterId;
@@ -109,13 +110,13 @@ class _SosActiveScreenState extends State<SosActiveScreen> with SingleTickerProv
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('SOS Alert cancelled')),
+          SnackBar(content: Text(tr('sos_cancelled'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to cancel SOS: $e')),
+          SnackBar(content: Text('${tr('failed_cancel_sos')} $e')),
         );
         setState(() => isCancelling = false);
       }
@@ -124,14 +125,14 @@ class _SosActiveScreenState extends State<SosActiveScreen> with SingleTickerProv
 
   Future<void> _callCaregiver() async {
     if (caregiverPhone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Caregiver phone number not available.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('caregiver_phone_unavailable'))));
       return;
     }
     
     final Uri url = Uri.parse('tel:$caregiverPhone');
     if (!await launchUrl(url)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open dialer for $caregiverPhone')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('cant_open_dialer')} $caregiverPhone')));
       }
     }
   }
@@ -160,16 +161,16 @@ class _SosActiveScreenState extends State<SosActiveScreen> with SingleTickerProv
                   children: [
                     const Icon(Icons.warning_rounded, color: Colors.white, size: 80),
                     const SizedBox(height: 16),
-                    const Text(
-                      "SOS ACTIVE",
+                    Text(
+                      tr('sos_active_title'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: 4),
+                      style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: 4),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      "Emergency services and family have been notified.\nLive location is being shared.",
+                    Text(
+                      tr('sos_notified_desc'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const Spacer(),
 
@@ -182,29 +183,29 @@ class _SosActiveScreenState extends State<SosActiveScreen> with SingleTickerProv
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.vaccines, color: Colors.red),
-                                SizedBox(width: 8),
-                                Text("Emergency Medication", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                                const Icon(Icons.vaccines, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Text(tr('emergency_medication_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
                               ],
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              emergencyMedication.isEmpty ? 'Loading...' : emergencyMedication,
+                              emergencyMedication.isEmpty ? tr('loading') : emergencyMedication,
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                             ),
                             const Divider(height: 30, thickness: 1),
-                            const Row(
+                            Row(
                               children: [
-                                Icon(Icons.medical_information, color: Colors.red),
-                                SizedBox(width: 8),
-                                Text("Medical Conditions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                                const Icon(Icons.medical_information, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Text(tr('medical_conditions_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
                               ],
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              medicalConditions.isEmpty ? 'Loading...' : medicalConditions,
+                              medicalConditions.isEmpty ? tr('loading') : medicalConditions,
                               style: const TextStyle(fontSize: 16, color: Colors.black87),
                             ),
                           ],
@@ -220,7 +221,7 @@ class _SosActiveScreenState extends State<SosActiveScreen> with SingleTickerProv
                       child: ElevatedButton.icon(
                         onPressed: _callCaregiver,
                         icon: const Icon(Icons.phone),
-                        label: const Text("Call Caregiver", style: TextStyle(fontSize: 20)),
+                        label: Text(tr('call_caregiver'), style: const TextStyle(fontSize: 20)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.red[900],
@@ -240,7 +241,7 @@ class _SosActiveScreenState extends State<SosActiveScreen> with SingleTickerProv
                         ),
                         child: isCancelling
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text("CANCEL SOS", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            : Text(tr('cancel_sos'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 20),

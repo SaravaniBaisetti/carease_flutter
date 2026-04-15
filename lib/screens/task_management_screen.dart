@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:easy_localization/easy_localization.dart';
+import '../services/translation_service.dart';
 
 class TaskManagementScreen extends StatefulWidget {
   final String clusterId;
@@ -14,7 +16,13 @@ class TaskManagementScreen extends StatefulWidget {
 class _TaskManagementScreenState extends State<TaskManagementScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _dueTimeController = TextEditingController(); // e.g., "09:00" or "14:30"
+  final _dueTimeController = TextEditingController();
+  DateTime? _selectedDueDateTime;
+  
+  String _recurrenceType = 'single';
+  List<String> _selectedDays = [];
+  final List<String> _weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
   bool isAdding = false;
 
   Future<void> _addTask() async {
@@ -23,32 +31,44 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
     setState(() => isAdding = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final translationService = TranslationService();
       
+      final titleTranslations = await translationService.translateToAllLocales(_titleController.text.trim());
+      final descriptionText = _descriptionController.text.trim();
+      final descriptionTranslations = await translationService.translateToAllLocales(descriptionText);
+
       await FirebaseFirestore.instance
           .collection('elderClusters')
           .doc(widget.clusterId)
           .collection('tasks')
           .add({
         "title": _titleController.text.trim(),
-        "description": _descriptionController.text.trim(),
-        "dueTime": _dueTimeController.text.trim().isEmpty ? null : _dueTimeController.text.trim(),
+        "titleTranslations": titleTranslations,
+        "description": descriptionText,
+        "descriptionTranslations": descriptionTranslations,
+        "dueTime": _selectedDueDateTime != null ? Timestamp.fromDate(_selectedDueDateTime!) : (_dueTimeController.text.trim().isEmpty ? null : _dueTimeController.text.trim()),
         "status": "pending",
+        "recurrenceType": _recurrenceType,
+        "selectedDays": _selectedDays,
         "createdBy": user!.uid,
         "createdAt": FieldValue.serverTimestamp(),
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task added successfully!')),
+          SnackBar(content: Text(tr('task_added_success'))),
         );
         _titleController.clear();
         _descriptionController.clear();
         _dueTimeController.clear();
+        _selectedDueDateTime = null;
+        _recurrenceType = 'single';
+        _selectedDays.clear();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add task: ${e.toString()}')),
+          SnackBar(content: Text('${tr('failed_to_add_task')} ${e.toString()}')),
         );
       }
     }
@@ -62,6 +82,8 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
     );
     if (picked != null) {
       setState(() {
+        final now = DateTime.now();
+        _selectedDueDateTime = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
         // format as HH:mm zero padded for proper sorting and parsing
         final hr = picked.hour.toString().padLeft(2, '0');
         final mn = picked.minute.toString().padLeft(2, '0');
@@ -77,55 +99,83 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-          title: const Text('Assign New Task'),
+          title: Text(tr('assign_new_task_title')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Task Title (ex. Doctor Visit)'),
+                  decoration: InputDecoration(labelText: tr('task_title_label')),
                 ),
                 TextField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
+                  decoration: InputDecoration(labelText: tr('description_label')),
                   maxLines: 3,
                 ),
                 TextField(
                   controller: _dueTimeController,
                   readOnly: true,
-                  onTap: () async {
-                    final TimeOfDay? picked = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.now(),
-                    );
-                    if (picked != null) {
+                  onTap: () => _selectTime(context),
+                  decoration: InputDecoration(
+                    labelText: tr('due_time_label'),
+                    suffixIcon: const Icon(Icons.access_time),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _recurrenceType,
+                  decoration: InputDecoration(labelText: tr('recurrence_label')),
+                  items: [
+                    DropdownMenuItem(value: 'daily', child: Text(tr('recurrence_daily'))),
+                    DropdownMenuItem(value: 'specific_days', child: Text(tr('recurrence_specific_days'))),
+                    DropdownMenuItem(value: 'single', child: Text(tr('recurrence_single'))),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
                       setDialogState(() {
-                        final hr = picked.hour.toString().padLeft(2, '0');
-                        final mn = picked.minute.toString().padLeft(2, '0');
-                        _dueTimeController.text = "$hr:$mn";
+                        _recurrenceType = val;
                       });
                     }
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Due Time (Tap to pick)',
-                    suffixIcon: Icon(Icons.access_time),
-                  ),
                 ),
+                if (_recurrenceType == 'specific_days') ...[
+                  const SizedBox(height: 16),
+                  Text(tr('select_days_label'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Wrap(
+                    spacing: 8,
+                    children: _weekDays.map((day) {
+                      final isSelected = _selectedDays.contains(day);
+                      return FilterChip(
+                        label: Text(tr('day_$day')),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setDialogState(() {
+                            if (selected) {
+                              _selectedDays.add(day);
+                            } else {
+                              _selectedDays.remove(day);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(tr('cancel')),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 _addTask();
               },
-              child: const Text('Assign Task'),
+              child: Text(tr('assign_task_btn')),
             ),
           ],
         );
@@ -139,7 +189,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Tasks'),
+        title: Text(tr('manage_tasks_title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_task),
@@ -166,11 +216,11 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
           final tasks = snapshot.data?.docs ?? [];
 
           if (tasks.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                'No tasks assigned.\\nTap + to create one.',
+                tr('no_tasks_assigned'),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
             );
           }
@@ -180,17 +230,39 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
             padding: const EdgeInsets.all(10),
             itemBuilder: (context, index) {
               final taskData = tasks[index].data() as Map<String, dynamic>;
+              final locale = context.locale.languageCode;
+              
+              final titleTx = (taskData['titleTranslations'] as Map<String, dynamic>?)?[locale] ?? taskData['title'] ?? tr('unknown_task');
+              final descTx = (taskData['descriptionTranslations'] as Map<String, dynamic>?)?[locale] ?? taskData['description'] ?? '';
+
               final isCompleted = taskData['status'] == 'completed';
+              final isMissed = taskData['status'] == 'missed';
+              
+              String dueTimeDisplay = 'No Time';
+              if (taskData['dueTime'] is Timestamp) {
+                final dt = (taskData['dueTime'] as Timestamp).toDate();
+                dueTimeDisplay = TimeOfDay.fromDateTime(dt).format(context);
+              } else if (taskData['dueTime'] != null) {
+                dueTimeDisplay = taskData['dueTime'].toString(); // fallback for old data
+              }
+
+              final recType = taskData['recurrenceType'] ?? 'single';
+              final recDays = (taskData['selectedDays'] as List<dynamic>?)?.join(', ') ?? '';
+              
+              String recurrenceText = tr('recurrence_$recType');
+              if (recType == 'specific_days' && recDays.isNotEmpty) {
+                 recurrenceText += ' ($recDays)';
+              }
               
               return Card(
                 elevation: 2,
                 child: ListTile(
                   leading: Icon(
-                    isCompleted ? Icons.check_circle : Icons.pending_actions, 
-                    color: isCompleted ? Colors.green : Colors.orange, 
+                    isCompleted ? Icons.check_circle : (isMissed ? Icons.cancel : Icons.pending_actions), 
+                    color: isCompleted ? Colors.green : (isMissed ? Colors.red : Colors.orange), 
                     size: 32
                   ),
-                  title: Text(taskData['title'] ?? 'Unknown Task', style: TextStyle(
+                  title: Text(titleTx, style: TextStyle(
                     fontWeight: FontWeight.bold,
                     decoration: isCompleted ? TextDecoration.lineThrough : null,
                   )),
@@ -198,9 +270,17 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (taskData['dueTime'] != null)
-                        Text('⏰ ${taskData['dueTime']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                      if (taskData['description'] != null && taskData['description'].toString().isNotEmpty)
-                        Text(taskData['description']),
+                        Text('⏰ ${tr('due_prefix')} $dueTimeDisplay', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                        
+                      Text('${tr('recurrence_prefix')} $recurrenceText'),
+                        
+                      if (isMissed)
+                        Text(tr('status_missed'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      if (isCompleted && taskData['lastStatus'] != null)
+                        Text('${tr('status_colon')} ${taskData['lastStatus']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+
+                      if (descTx.toString().isNotEmpty)
+                        Text(descTx),
                     ],
                   ),
                   trailing: IconButton(
@@ -223,7 +303,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTaskDialog,
         icon: const Icon(Icons.add),
-        label: const Text('Assign Task'),
+        label: Text(tr('assign_task_btn')),
       ),
     );
   }

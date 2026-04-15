@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class AddMemberScreen extends StatefulWidget {
   final String clusterId;
@@ -17,7 +18,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   void _copyToClipboard() {
     Clipboard.setData(ClipboardData(text: widget.clusterId));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cluster Invite Code copied to clipboard!')),
+      SnackBar(content: Text(tr('cluster_invite_copied'))),
     );
   }
 
@@ -34,13 +35,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     } catch (e) {
       debugPrint('Error fetching name for $uid: $e');
     }
-    return 'Unknown User ($uid)';
+    return '${tr('unknown_user')} ($uid)';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cluster Members')),
+      appBar: AppBar(title: Text(tr('cluster_members_title'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -54,7 +55,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                   children: [
                     const Icon(Icons.share, size: 40, color: Colors.blue),
                     const SizedBox(height: 16),
-                    const Text('Cluster Invite Code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text(tr('cluster_invite_code'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -69,16 +70,16 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                     ElevatedButton.icon(
                       onPressed: _copyToClipboard,
                       icon: const Icon(Icons.copy),
-                      label: const Text('Copy Invite Code'),
+                      label: Text(tr('copy_invite_code')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Share this code with Caregivers and Family members so they can join your cluster during Sign Up.',
-                      style: TextStyle(color: Colors.grey),
+                    Text(
+                      tr('share_code_desc'),
+                      style: const TextStyle(color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -86,7 +87,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
               ),
             ),
             const SizedBox(height: 30),
-            const Text('Current Members', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+            Text(tr('current_members'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
             const SizedBox(height: 16),
             
             StreamBuilder<DocumentSnapshot>(
@@ -97,7 +98,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                 }
                 
                 if (!snapshot.hasData || !snapshot.data!.exists) {
-                  return const Text('Cluster data not found.');
+                  return Text(tr('cluster_data_not_found'));
                 }
                 
                 final clusterData = snapshot.data!.data() as Map<String, dynamic>;
@@ -109,28 +110,28 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (elderId != null) ...[
-                      const Text('Elder:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
+                      Text(tr('elder_label'), style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
                       _buildMemberTile(elderId, Icons.elderly, Colors.deepPurple),
                       const SizedBox(height: 12),
                     ],
                     
-                    const Text('Primary Caregiver:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
+                    Text(tr('primary_caregiver_label'), style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
                     if (caregiverId != null)
                       _buildMemberTile(caregiverId, Icons.medical_services, Colors.teal)
                     else
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text("No caregiver assigned yet.", style: TextStyle(fontStyle: FontStyle.italic)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(tr('no_caregiver_assigned'), style: const TextStyle(fontStyle: FontStyle.italic)),
                       ),
                     const SizedBox(height: 12),
 
-                    const Text('Family Members:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
+                    Text(tr('family_members_label'), style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.grey)),
                     if (familyMembers.isNotEmpty)
                       ...familyMembers.map((uid) => _buildMemberTile(uid, Icons.family_restroom, Colors.orange)).toList()
                     else
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text("No family members yet.", style: TextStyle(fontStyle: FontStyle.italic)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(tr('no_family_members'), style: const TextStyle(fontStyle: FontStyle.italic)),
                       ),
                   ],
                 );
@@ -154,8 +155,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
               backgroundColor: color.withOpacity(0.1),
               child: Icon(icon, color: color),
             ),
-            title: Text(snapshot.data ?? 'Loading...'),
-            subtitle: Text('ID: ${uid.substring(0, 8)}...', style: const TextStyle(fontSize: 12)),
+            title: Text(snapshot.data ?? tr('loading')),
+            subtitle: Text('${tr('id_prefix')}${uid.substring(0, 8)}...', style: const TextStyle(fontSize: 12)),
           ),
         );
       },

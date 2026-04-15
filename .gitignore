@@ -50,3 +50,4 @@ backend/firebaseServiceKey_careasenew.json
 backend/firebaseServiceKey*.json
 
 .env
+lib/services/service_account.dart
