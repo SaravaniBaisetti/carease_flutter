@@ -362,8 +362,7 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildElderCard(BuildContext context, String clusterId,

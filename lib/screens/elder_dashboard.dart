@@ -728,7 +728,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
     // Establishing a dependency on EasyLocalization so this widget rebuilds on language change
     final _ = context.locale;
     return Scaffold(
-      backgroundColor: Colors.black, // Fallback underlying color
+      backgroundColor: Colors.transparent, // Fix: Use transparent to avoid black flash
       extendBodyBehindAppBar: true,
       body: Container(
         width: double.infinity,
@@ -751,7 +751,6 @@ class _ElderDashboardState extends State<ElderDashboard> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

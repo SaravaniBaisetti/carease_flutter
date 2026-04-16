@@ -358,8 +358,7 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildElderCard(BuildContext context, String clusterId,
