@@ -739,21 +739,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
             fit: BoxFit.cover,
           ),
         ),
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.7),
-                Colors.transparent,
-                Colors.black.withOpacity(0.7),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: SafeArea(
+        child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth > 800) {

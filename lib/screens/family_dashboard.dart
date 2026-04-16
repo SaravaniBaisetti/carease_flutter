@@ -274,21 +274,7 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
             fit: BoxFit.cover,
           ),
         ),
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.black.withOpacity(0.6),
-                Colors.transparent,
-                Colors.black.withOpacity(0.8),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: SafeArea(
+        child: SafeArea(
             child: clusterIds.isEmpty
           ? Center(
               child: Column(
