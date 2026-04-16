@@ -1,8 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 
-enum AppButtonVariant { primary, secondary, outline, text }
+enum AppButtonVariant { primary, secondary, outline, text, sos }
 
 class AppButton extends StatelessWidget {
   final VoidCallback? onPressed;
@@ -41,75 +42,101 @@ class AppButton extends StatelessWidget {
           Icon(icon, size: 20),
           const SizedBox(width: 8),
         ],
-        Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
 
-    late Widget button;
+    if (variant == AppButtonVariant.text) {
+      return TextButton(
+        onPressed: isLoading ? null : onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.oliveGreenDark,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        child: buttonChild,
+      ).animate().fade(duration: 300.ms);
+    }
 
-    switch (variant) {
-      case AppButtonVariant.primary:
-        button = Container(
+    if (variant == AppButtonVariant.outline) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: AppColors.oliveGreen.withOpacity(0.1),
+              border: Border.all(color: AppColors.oliveGreen.withOpacity(0.5), width: 1.5),
+            ),
+            child: ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: AppColors.oliveGreenDark,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: buttonChild,
+            ),
+          ),
+        ),
+      ).animate().fade(duration: 300.ms);
+    }
+
+    // Glass button styling
+    final bool isSos = variant == AppButtonVariant.sos;
+    final Color baseColor = isSos ? AppColors.sosRed : AppColors.oliveGreen;
+    final Color lightColor = isSos ? AppColors.sosRedLight : AppColors.oliveGreenLight;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: onPressed != null ? AppColors.primaryGradient : null,
-            color: onPressed == null ? Colors.grey.shade300 : null,
-            boxShadow: onPressed != null
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
-                : [],
+            gradient: LinearGradient(
+              colors: [
+                baseColor.withOpacity(0.75),
+                lightColor.withOpacity(0.55),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: baseColor.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: ElevatedButton(
             onPressed: isLoading ? null : onPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
-              disabledForegroundColor: Colors.grey.shade600,
+              foregroundColor: Colors.white,
+              disabledForegroundColor: Colors.white60,
               disabledBackgroundColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: buttonChild,
           ),
-        );
-        break;
-      case AppButtonVariant.secondary:
-        button = ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.secondary,
-            foregroundColor: Colors.white,
-          ),
-          child: buttonChild,
-        );
-        break;
-      case AppButtonVariant.outline:
-        button = OutlinedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary, width: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          child: buttonChild,
-        );
-        break;
-      case AppButtonVariant.text:
-        button = TextButton(
-          onPressed: isLoading ? null : onPressed,
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
-          child: buttonChild,
-        );
-        break;
-    }
-
-    return button.animate().fade(duration: 300.ms);
+        ),
+      ),
+    ).animate().fade(duration: 300.ms);
   }
 }

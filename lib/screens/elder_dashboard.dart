@@ -6,12 +6,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../theme/app_colors.dart';
 import '../widgets/language_picker.dart';
 import '../widgets/theme_toggle_button.dart';
 import 'elder_medicine_view.dart';
 import 'elder_task_view.dart';
 import 'daily_check_in_screen.dart';
 import 'login_screen.dart';
+import '../theme/app_colors.dart';
 import 'sos_active_screen.dart';
 import 'profile_screen.dart';
 import '../services/alarm_sync_service.dart';
@@ -563,8 +565,8 @@ class _ElderDashboardState extends State<ElderDashboard> {
           child: GestureDetector(
             onTap: isSosLoading ? null : triggerSOS,
             child: GlassContainer(
-              color: Colors.redAccent.withOpacity(0.3),
-              border: Border.all(color: Colors.redAccent.withOpacity(0.8), width: 2),
+              color: AppColors.sosRed.withOpacity(0.4),
+              border: Border.all(color: AppColors.sosRedLight.withOpacity(0.8), width: 2),
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: isSosLoading
                   ? const Center(child: CircularProgressIndicator(color: Colors.white))
@@ -593,6 +595,8 @@ class _ElderDashboardState extends State<ElderDashboard> {
           child: GestureDetector(
             onTap: clusterId == null ? null : _startGeneralVoiceAssistant,
             child: GlassContainer(
+              color: AppColors.oliveGreen.withOpacity(0.35),
+              border: Border.all(color: AppColors.oliveGreenLight.withOpacity(0.6), width: 1.5),
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -731,7 +735,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
         height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/dashboard_bg.png'),
+            image: AssetImage('assets/images/default_bg.png'),
             fit: BoxFit.cover,
           ),
         ),

@@ -270,7 +270,7 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
         height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/family_bg.jpg'),
+            image: AssetImage('assets/images/default_bg.png'),
             fit: BoxFit.cover,
           ),
         ),

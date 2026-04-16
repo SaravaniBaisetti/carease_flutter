@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../theme/app_colors.dart';
 
 class ElderTaskView extends StatefulWidget {
   final String clusterId;
@@ -243,7 +244,7 @@ class _ElderTaskViewState extends State<ElderTaskView> {
                             icon: const Icon(Icons.check_circle_outline),
                             label: Text(tr('mark_as_done_btn'), style: const TextStyle(fontSize: 18)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: AppColors.oliveGreen,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               elevation: 0,

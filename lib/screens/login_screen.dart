@@ -126,8 +126,16 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/default_bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
           child: Stack(
             children: [
               Center(
@@ -246,6 +254,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
-      );
+      ),
+    );
   }
 }

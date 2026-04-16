@@ -18,7 +18,7 @@ class TranslationService {
     }
     
     try {
-      final model = GenerativeModel(model: 'gemini-flash-latest', apiKey: _apiKey);
+      final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: _apiKey);
       final prompt = '''
 You are a highly accurate medical translator. Your task is to translate the following string into a JSON map of localized strings.
 Input string to translate: "\$text"

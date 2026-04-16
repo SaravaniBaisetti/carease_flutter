@@ -275,7 +275,7 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
         height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/caregiver_bg.jpg'),
+            image: AssetImage('assets/images/default_bg.png'),
             fit: BoxFit.cover,
           ),
         ),
