@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'dart:ui';
+import '../theme/app_colors.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String role;
@@ -17,7 +20,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isLoading = true;
   bool isSaving = false;
 
-  // Controllers for fields
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
   final ageController = TextEditingController();
@@ -37,7 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     if (user == null) return;
-    
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
@@ -50,7 +51,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final data = doc.data()!;
         nameController.text = data['name'] ?? '';
         phoneController.text = data['phone'] ?? '';
-        
         if (widget.role == 'elder') {
           ageController.text = data['age']?.toString() ?? '';
           bloodGroupController.text = data['bloodGroup'] ?? '';
@@ -63,7 +63,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           relationController.text = data['relationToElder'] ?? '';
         }
       } else {
-        // Also fetch name from base users collection if profile doesn't exist yet
         final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
         if (userDoc.exists) {
           nameController.text = userDoc.data()?['name'] ?? '';
@@ -78,15 +77,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (user == null) return;
-    
     setState(() => isSaving = true);
-    
     try {
       Map<String, dynamic> profileData = {
         'name': nameController.text.trim(),
         'phone': phoneController.text.trim(),
       };
-
       if (widget.role == 'elder') {
         profileData.addAll({
           'age': int.tryParse(ageController.text.trim()),
@@ -98,9 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'emergencyContacts': emergencyContactsController.text.trim(),
         });
       } else {
-        profileData.addAll({
-          'relationToElder': relationController.text.trim(),
-        });
+        profileData.addAll({'relationToElder': relationController.text.trim()});
       }
 
       await FirebaseFirestore.instance
@@ -110,7 +104,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .doc(user!.uid)
           .set(profileData, SetOptions(merge: true));
 
-      // Also update name in the main user document
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user!.uid)
@@ -124,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${tr('failed_save_profile')} ${e.toString()}')),
+          SnackBar(content: Text('${tr('failed_save_profile')} $e')),
         );
       }
     } finally {
@@ -147,18 +140,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildGlassField(String label, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType, IconData? icon}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: TextField(
+              controller: controller,
+              maxLines: maxLines,
+              keyboardType: keyboardType,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
+                icon: icon != null ? Icon(icon, color: Colors.white70, size: 20) : null,
+                labelText: label,
+                labelStyle: const TextStyle(color: Colors.white70),
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                enabledBorder: InputBorder.none,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -166,90 +176,134 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(tr('my_profile_title')),
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        title: Text(tr('my_profile_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           if (isSaving)
-            const Center(child: Padding(padding: EdgeInsets.only(right: 20), child: CircularProgressIndicator()))
+            const Center(child: Padding(padding: EdgeInsets.only(right: 20), child: CircularProgressIndicator(color: Colors.white)))
           else
             IconButton(
-              icon: const Icon(Icons.check),
+              icon: const Icon(Icons.check_circle_outline, size: 28),
               onPressed: _saveProfile,
             )
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.teal,
-              child: Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-            const SizedBox(height: 30),
-            
-            Text(tr('basic_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            _buildTextField(tr('full_name'), nameController),
-            _buildTextField(tr('phone_number'), phoneController, keyboardType: TextInputType.phone),
-
-            if (widget.role == 'elder') ...[
-              const SizedBox(height: 20),
-              Text(tr('health_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(tr('age'), ageController, keyboardType: TextInputType.number)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(tr('blood_group'), bloodGroupController)),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(tr('height'), heightController)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(tr('weight'), weightController)),
-                ],
-              ),
-              _buildTextField(tr('medical_conditions'), medicalConditionsController, maxLines: 3),
-              
-              const SizedBox(height: 20),
-              Text(tr('emergency_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
-              const SizedBox(height: 8),
-              Text(tr('emergency_meds_desc'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              const SizedBox(height: 8),
-              _buildTextField(tr('emergency_meds'), emergencyMedicationController, maxLines: 3),
-              const SizedBox(height: 16),
-              Text(tr('custom_emergency_contacts'), style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              const SizedBox(height: 8),
-              _buildTextField(tr('comma_separated_phones'), emergencyContactsController, maxLines: 2, keyboardType: TextInputType.phone),
-            ] else ...[
-              const SizedBox(height: 20),
-              Text(tr('role_information'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              _buildTextField(tr('relation_to_elder'), relationController),
-            ],
-
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _saveProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text('Save Profile'),
-            )
-          ],
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/default_bg.png'),
+            fit: BoxFit.cover,
+          ),
         ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Container(
+            color: Colors.black.withOpacity(0.3),
+            child: SafeArea(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(
+                            child: Stack(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppColors.primary, width: 3),
+                                  ),
+                                  child: const CircleAvatar(
+                                    radius: 60,
+                                    backgroundColor: Colors.white24,
+                                    child: Icon(Icons.person, size: 60, color: Colors.white),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                  ),
+                                )
+                              ],
+                            ),
+                          ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
+                          const SizedBox(height: 32),
+                          
+                          _buildSectionHeader(tr('basic_information')),
+                          _buildGlassField(tr('full_name'), nameController, icon: Icons.badge_outlined),
+                          _buildGlassField(tr('phone_number'), phoneController, keyboardType: TextInputType.phone, icon: Icons.phone_outlined),
+
+                          if (widget.role == 'elder') ...[
+                            const SizedBox(height: 24),
+                            _buildSectionHeader(tr('health_information')),
+                            Row(
+                              children: [
+                                Expanded(child: _buildGlassField(tr('age'), ageController, keyboardType: TextInputType.number, icon: Icons.cake_outlined)),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildGlassField(tr('blood_group'), bloodGroupController, icon: Icons.water_drop_outlined)),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(child: _buildGlassField(tr('height'), heightController, icon: Icons.height)),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildGlassField(tr('weight'), weightController, icon: Icons.monitor_weight_outlined)),
+                              ],
+                            ),
+                            _buildGlassField(tr('medical_conditions'), medicalConditionsController, maxLines: 3, icon: Icons.medical_information_outlined),
+                            
+                            const SizedBox(height: 24),
+                            _buildSectionHeader(tr('emergency_information'), color: Colors.orangeAccent),
+                            _buildGlassField(tr('emergency_meds'), emergencyMedicationController, maxLines: 3, icon: Icons.emergency_outlined),
+                            _buildGlassField(tr('phone_number'), emergencyContactsController, maxLines: 2, keyboardType: TextInputType.phone, icon: Icons.contact_phone_outlined),
+                          ] else ...[
+                            const SizedBox(height: 24),
+                            _buildSectionHeader(tr('role_information')),
+                            _buildGlassField(tr('relation_to_elder'), relationController, icon: Icons.people_outline),
+                          ],
+
+                          const SizedBox(height: 40),
+                          ElevatedButton(
+                            onPressed: _saveProfile,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary.withOpacity(0.8),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              elevation: 0,
+                            ),
+                            child: Text(tr('save_btn').toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                          ).animate().slideY(begin: 1.0, duration: 600.ms),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, {Color color = Colors.white}) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color.withOpacity(0.9), letterSpacing: 0.5),
       ),
     );
   }
