@@ -44,7 +44,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
   bool isSosLoading = false;
   String? clusterId;
   String? caregiverPhone;
-  String elderName = "there";
+  String elderName = "!";
   StreamSubscription<Position>? _locationSubscription;
   AlarmSyncService? _alarmSyncService;
 
@@ -445,15 +445,31 @@ class _ElderDashboardState extends State<ElderDashboard> {
   }
 
   Widget _buildHealthOverview() {
-    return GlassContainer(
+    return Container(
       padding: const EdgeInsets.all(20),
-      onTap: clusterId == null
-          ? null
-          : () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => DailyCheckInScreen(clusterId: clusterId!)));
-            },
-      child: Row(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.oliveGreen.withOpacity(0.95), // Solid feel
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: clusterId == null
+              ? null
+              : () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => DailyCheckInScreen(clusterId: clusterId!)));
+                },
+          borderRadius: BorderRadius.circular(24),
+          child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
@@ -497,59 +513,89 @@ class _ElderDashboardState extends State<ElderDashboard> {
     return Row(
       children: [
         Expanded(
-          child: GlassContainer(
-            onTap: clusterId == null
-                ? null
-                : () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => ElderMedicineView(clusterId: clusterId!)));
-                  },
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.deepPurpleAccent.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.medication_liquid_rounded, color: Colors.white, size: 32),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  tr('medicines'),
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                )
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.oliveGreen, // Solid shade 1
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 4)),
               ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: clusterId == null
+                    ? null
+                    : () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => ElderMedicineView(clusterId: clusterId!)));
+                      },
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.medication_liquid_rounded, color: Colors.white, size: 32),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        tr('medicines'),
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      )
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: GlassContainer(
-            onTap: clusterId == null
-                ? null
-                : () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => ElderTaskView(clusterId: clusterId!)));
-                  },
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.greenAccent.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.content_paste_rounded, color: Colors.white, size: 32),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  tr('tasks'),
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                )
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.oliveGreenLight, // Solid shade 2
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 4)),
               ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: clusterId == null
+                    ? null
+                    : () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => ElderTaskView(clusterId: clusterId!)));
+                      },
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.content_paste_rounded, color: Colors.white, size: 32),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        tr('tasks'),
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      )
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -592,26 +638,37 @@ class _ElderDashboardState extends State<ElderDashboard> {
         const SizedBox(width: 16),
         Expanded(
           flex: 1,
-          child: GestureDetector(
-            onTap: clusterId == null ? null : _startGeneralVoiceAssistant,
-            child: GlassContainer(
-              color: AppColors.oliveGreen.withOpacity(0.35),
-              border: Border.all(color: AppColors.oliveGreenLight.withOpacity(0.6), width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.mic_rounded, color: Colors.white, size: 40),
-                  const SizedBox(height: 8),
-                  Text(
-                    tr('ai_voice_assistant'),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.oliveGreenDark,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: clusterId == null ? null : _startGeneralVoiceAssistant,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.mic_rounded, color: Colors.white, size: 40),
+                      const SizedBox(height: 8),
+                      Text(
+                        tr('ai_voice_assistant').split(' ').last,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
