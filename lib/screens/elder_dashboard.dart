@@ -306,27 +306,35 @@ class _ElderDashboardState extends State<ElderDashboard> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.favorite_rounded, color: Colors.cyanAccent, size: 28),
-              const SizedBox(width: 8),
-              Text(
-                tr('my_dashboard'),
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+          Flexible(
+            child: Row(
+              children: [
+                const Icon(Icons.favorite_rounded, color: AppColors.oliveGreen, size: 28),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    tr('my_dashboard'),
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const LanguagePicker(),
               if (clusterId != null)
                 IconButton(
-                  icon: const Icon(Icons.share, size: 28, color: Colors.white),
+                  icon: const Icon(Icons.share, size: 24, color: Colors.white),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                   tooltip: tr('share_invite_code'),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: clusterId!));
@@ -335,15 +343,21 @@ class _ElderDashboardState extends State<ElderDashboard> {
                     );
                   },
                 ),
+              const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.person, size: 28, color: Colors.white),
+                icon: const Icon(Icons.person, size: 24, color: Colors.white),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () {
                   Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen(role: 'elder')));
                 },
               ),
+              const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.logout, size: 28, color: Colors.pinkAccent),
+                icon: const Icon(Icons.logout, size: 24, color: Colors.pinkAccent),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
                   if (mounted) {
@@ -428,7 +442,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
                   Container(
                     width: 12,
                     height: 12,
-                    decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(color: AppColors.oliveGreen, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -472,19 +486,21 @@ class _ElderDashboardState extends State<ElderDashboard> {
           child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                tr('daily_check_in'),
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                tr('tap_to_record'),
-                style: TextStyle(
-                    color: Colors.white.withOpacity(0.7), fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('daily_check_in'),
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  tr('tap_to_record'),
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.7), fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
           Container(
             height: 60,
@@ -561,7 +577,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.oliveGreenLight, // Solid shade 2
+              color: AppColors.oliveGreen, // Solid shade 2
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 4)),
@@ -642,7 +658,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
           flex: 1,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.oliveGreenDark,
+              color: AppColors.oliveGreen,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 4)),
@@ -682,7 +698,7 @@ class _ElderDashboardState extends State<ElderDashboard> {
   Widget _buildCaregiverCall() {
     return GlassContainer(
       onTap: _callCaregiver,
-      color: Colors.cyan.withOpacity(0.2),
+      color: Colors.green.withOpacity(1),
       padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

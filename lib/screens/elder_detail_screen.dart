@@ -145,11 +145,11 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.elderName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                            Text(widget.elderName, style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold)),
                             if (!isLoadingProfile && elderProfile != null) ...[
                               const SizedBox(height: 4),
-                              Text("${elderProfile!['age']} ${tr('yrs_blood')} ${elderProfile!['bloodGroup']}", style: const TextStyle(color: Colors.white70)),
-                              Text("${tr('wt')} ${elderProfile!['weight']} • ${tr('ht')} ${elderProfile!['height']}", style: const TextStyle(color: Colors.white70)),
+                              Text("${elderProfile!['age']} ${tr('yrs_blood')} ${elderProfile!['bloodGroup']}", style: const TextStyle(color: Colors.black70)),
+                              Text("${tr('wt')} ${elderProfile!['weight']} • ${tr('ht')} ${elderProfile!['height']}", style: const TextStyle(color: Colors.black70)),
                             ]
                           ],
                         ),
