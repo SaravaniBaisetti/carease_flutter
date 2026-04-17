@@ -224,12 +224,19 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Row(
-          children: [
-            const Icon(Icons.family_restroom, color: AppColors.secondary),
-            const SizedBox(width: 8),
-            Text(tr('family_overview'), style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
+        title: Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.family_restroom, color: AppColors.secondary),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(tr('family_overview'),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
         ),
         actions: [
           const ThemeToggleButton(isCompact: true),
@@ -458,11 +465,14 @@ class _FamilyDashboardState extends State<FamilyDashboard> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(tr('tap_to_view_details'),
-                      style: const TextStyle(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16)),
+                  Expanded(
+                    child: Text(tr('tap_to_view_details'),
+                        style: const TextStyle(
+                            color: AppColors.secondary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16)),
+                  ),
+                  const SizedBox(width: 8),
                   const Icon(Icons.analytics_rounded,
                       color: AppColors.secondary)
                 ],
