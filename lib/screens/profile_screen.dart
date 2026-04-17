@@ -158,11 +158,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               controller: controller,
               maxLines: maxLines,
               keyboardType: keyboardType,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
-                icon: icon != null ? Icon(icon, color: Colors.white70, size: 20) : null,
+                filled: false,
+                icon: icon != null ? Icon(icon, color: Colors.white, size: 22) : null,
                 labelText: label,
-                labelStyle: const TextStyle(color: Colors.white70),
+                labelStyle: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14),
                 border: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 enabledBorder: InputBorder.none,
@@ -205,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.6),
             child: SafeArea(
               child: isLoading
                   ? const Center(child: CircularProgressIndicator(color: Colors.white))

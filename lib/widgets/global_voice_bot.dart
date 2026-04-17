@@ -243,20 +243,29 @@ class _VoiceBotWidgetState extends State<_VoiceBotWidget> with TickerProviderSta
   Future<void> _speakLocalGreeting() async {
     if (!mounted || !_isSessionActive) return;
     
-    final greeting = _localResponses['greeting']!;
-    
-    setState(() {
-      _currentAiResponse = greeting;
-      _messages.add(_ChatMessage(text: greeting, isUser: false));
-      _currentState = VoiceState.speaking;
-    });
+    // If Gemini is ready, use it for a warm, dynamic greeting
+    if (_geminiReady && _geminiService != null) {
+      setState(() => _currentState = VoiceState.thinking);
+      final dynamicGreeting = await _geminiService!.initConversation();
+      setState(() {
+        _currentAiResponse = dynamicGreeting;
+        _messages.add(_ChatMessage(text: dynamicGreeting, isUser: false));
+        _currentState = VoiceState.speaking;
+      });
+      await AIVoiceAssistant().speak(dynamicGreeting, widget.languageCode);
+    } else {
+      // Fallback to local greeting if Gemini is slow or offline
+      final greeting = _localResponses['greeting']!;
+      setState(() {
+        _currentAiResponse = greeting;
+        _messages.add(_ChatMessage(text: greeting, isUser: false));
+        _currentState = VoiceState.speaking;
+      });
+      await AIVoiceAssistant().speak(greeting, widget.languageCode);
+    }
 
-    await AIVoiceAssistant().speak(greeting, widget.languageCode);
     await AIVoiceAssistant().awaitSpeakCompletion();
-    
     if (!mounted || !_isSessionActive) return;
-
-    // Auto-start listening after greeting
     _startListening();
   }
 
@@ -312,9 +321,10 @@ class _VoiceBotWidgetState extends State<_VoiceBotWidget> with TickerProviderSta
     });
     _scrollToBottom();
 
-    // ──── STEP 1: Try LOCAL intent parsing FIRST (instant, no network) ────
-    final intent = IntentParser.parseDashboardCommand(text);
-    debugPrint('VoiceBot: Local intent: $intent');
+    // ──── STEP 1: Try LOCAL intent parsing ONLY for very short commands ────
+    final wordCount = text.split(' ').length;
+    final intent = wordCount <= 3 ? IntentParser.parseDashboardCommand(text) : 'unknown';
+    debugPrint('VoiceBot: Local intent (words: $wordCount): $intent');
 
     if (intent == 'trigger_sos') {
       await _handleLocalCommand('sos', () => widget.onTriggerSos());

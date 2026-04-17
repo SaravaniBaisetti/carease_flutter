@@ -167,9 +167,12 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text(elderProfile!['medicalConditions']?.toString().isNotEmpty == true 
-                          ? elderProfile!['medicalConditions'] 
-                          : tr('no_conditions_listed')),
+                      child: Text(
+                        elderProfile!['medicalConditions']?.toString().isNotEmpty == true 
+                            ? elderProfile!['medicalConditions'] 
+                            : tr('no_conditions_listed'),
+                        style: const TextStyle(color: Colors.black87, fontSize: 16),
+                      ),
                     ),
                   ).animate().fade(delay: 100.ms),
                   
@@ -179,9 +182,12 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text(elderProfile!['emergencyMedication']?.toString().isNotEmpty == true 
-                          ? elderProfile!['emergencyMedication'] 
-                          : tr('no_emergency_meds')),
+                      child: Text(
+                        elderProfile!['emergencyMedication']?.toString().isNotEmpty == true 
+                            ? elderProfile!['emergencyMedication'] 
+                            : tr('no_emergency_meds'),
+                        style: const TextStyle(color: Colors.black87, fontSize: 16),
+                      ),
                     ),
                   ).animate().fade(delay: 200.ms),
                 ],
@@ -221,7 +227,12 @@ class _ElderDetailScreenState extends State<ElderDetailScreen> with SingleTicker
                           children: [
                             Text(moodEmoji, style: const TextStyle(fontSize: 40)),
                             const SizedBox(width: 16),
-                            Expanded(child: Text(data['details']?.toString().isNotEmpty == true ? data['details'] : tr('no_notes_provided'), style: const TextStyle(fontSize: 16))),
+                            Expanded(
+                              child: Text(
+                                data['details']?.toString().isNotEmpty == true ? data['details'] : tr('no_notes_provided'), 
+                                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                              ),
+                            ),
                             const Icon(Icons.chevron_right, color: Colors.grey),
                           ],
                         ),
