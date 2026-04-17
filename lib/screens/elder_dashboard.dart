@@ -506,8 +506,10 @@ class _ElderDashboardState extends State<ElderDashboard> {
           )
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildQuickActionsGrid() {
     return Row(
