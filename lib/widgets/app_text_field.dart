@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-class AppTextField extends StatelessWidget {
+class AppTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final String? hint;
@@ -28,6 +28,19 @@ class AppTextField extends StatelessWidget {
   });
 
   @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  late bool _obscureText;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.obscureText;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
@@ -42,17 +55,30 @@ class AppTextField extends StatelessWidget {
         ],
       ),
       child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        textCapitalization: textCapitalization,
-        maxLines: maxLines,
+        controller: widget.controller,
+        obscureText: _obscureText,
+        keyboardType: widget.keyboardType,
+        textCapitalization: widget.textCapitalization,
+        maxLines: widget.maxLines,
         decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          helperText: helperText,
-          prefixIcon: Icon(prefixIcon, color: AppColors.primary.withOpacity(0.8)),
-          suffixIcon: suffixIcon,
+          labelText: widget.label,
+          hintText: widget.hint,
+          helperText: widget.helperText,
+          prefixIcon: Icon(widget.prefixIcon, color: AppColors.primary.withOpacity(0.8)),
+          suffixIcon: widget.obscureText
+              ? IconButton(
+                  icon: Icon(
+                    _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureText = !_obscureText;
+                    });
+                  },
+                )
+              : widget.suffixIcon,
         ),
       ),
     );
