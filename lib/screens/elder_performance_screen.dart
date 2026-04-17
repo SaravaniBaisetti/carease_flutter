@@ -165,9 +165,12 @@ class _ElderPerformanceScreenState extends State<ElderPerformanceScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                tr('performance_overview'),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Flexible(
+                child: Text(
+                  tr('performance_overview'),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
               DropdownButton<String>(
                 value: timePeriod,
@@ -324,8 +327,10 @@ class _ElderPerformanceScreenState extends State<ElderPerformanceScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
               children: [
                 _buildIndicator(Colors.green, tr('good')),
                 _buildIndicator(Colors.orange, tr('not_bad')),
@@ -368,8 +373,10 @@ class _ElderPerformanceScreenState extends State<ElderPerformanceScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              spacing: 20,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
               children: [
                 _buildStatItem(labelTaken ?? tr('taken'), taken, colorTaken),
                 _buildStatItem(tr('pending'), pending, colorPending),

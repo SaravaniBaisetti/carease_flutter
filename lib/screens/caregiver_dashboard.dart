@@ -226,18 +226,28 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Row(
-          children: [
-            const Icon(Icons.favorite, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Text(tr('elders_overview'), style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
+        title: Flexible(
+          child: Row(
+            children: [
+              const Icon(Icons.favorite, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  tr('elders_overview'),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           const ThemeToggleButton(isCompact: true),
           const LanguagePicker(),
           IconButton(
-            icon: const Icon(Icons.person),
+            icon: const Icon(Icons.person, size: 24),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
             onPressed: () {
               Navigator.push(
                       context,
@@ -247,16 +257,18 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
                   .then((_) => _loadData());
             },
           ),
+          const SizedBox(width: 12),
           IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.error),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (mounted) {
-                Navigator.pushReplacement(context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()));
-              }
+            icon: const Icon(Icons.logout, size: 24, color: Colors.pinkAccent),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              FirebaseAuth.instance.signOut();
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()));
             },
-          )
+          ),
+          const SizedBox(width: 16),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

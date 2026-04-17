@@ -332,13 +332,15 @@ class _MedicineManagementScreenState extends State<MedicineManagementScreen> {
                           children: [
                              Icon(statusIcon, color: statusColor, size: 16),
                              const SizedBox(width: 4),
-                             Text(
-                               '${tr('status_prefix')} $statusText',
-                               style: TextStyle(
-                                 color: statusColor,
-                                 fontWeight: FontWeight.bold,
-                               ),
-                             ),
+                              Expanded(
+                                child: Text(
+                                  '${tr('status_prefix')} $statusText',
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
